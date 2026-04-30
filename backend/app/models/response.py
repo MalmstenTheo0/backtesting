@@ -1,7 +1,7 @@
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class HealthResponse(BaseModel):
@@ -55,9 +55,15 @@ class LumpSumMetrics(BaseModel):
 
 
 class ChartPoint(BaseModel):
+    """`invested` en JSON; acepta `cumulative_invested` al construir desde DailySnapshot."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
     date: date
     price: float
-    invested: float
+    invested: float = Field(
+        validation_alias=AliasChoices("invested", "cumulative_invested"),
+    )
     portfolio_value: float
     is_buy: bool
 
