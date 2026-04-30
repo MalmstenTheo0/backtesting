@@ -5,6 +5,7 @@ import {
   formatMonthYear,
 } from "../../lib/format";
 import type { BacktestResponse } from "../../types";
+import { BacktestChart } from "../Chart/BacktestChart";
 import { ComparisonTable } from "./ComparisonTable";
 import { MetricCard } from "./MetricCard";
 
@@ -24,14 +25,20 @@ function amountSuffix(freq: string): string {
 
 export function ResultsPanel({ data }: ResultsPanelProps): JSX.Element {
   const { summary, metrics } = data;
+  const {
+    amount_per_period: summaryAmountPerPeriod,
+    frequency: summaryFrequency,
+    total_periods: summaryTotalPeriods,
+    commission_pct: summaryCommissionPct,
+  } = summary;
   const buys = deriveRecentBuyRows(
     data.chart_data,
-    summary.amount_per_period,
-    summary.commission_pct,
+    summaryAmountPerPeriod,
+    summaryCommissionPct,
     5,
   );
 
-  const investedSub = `${summary.total_periods} períodos · ${formatMoney(summary.amount_per_period)}/${amountSuffix(summary.frequency)}`;
+  const investedSub = `${summaryTotalPeriods} períodos · ${formatMoney(summaryAmountPerPeriod)}/${amountSuffix(summaryFrequency)}`;
 
   return (
     <section className="flex flex-col gap-4" aria-label="Resultados">
@@ -59,6 +66,8 @@ export function ResultsPanel({ data }: ResultsPanelProps): JSX.Element {
           positive={metrics.cagr_pct >= 0}
         />
       </div>
+
+      <BacktestChart data={data} />
 
       <ComparisonTable data={data} />
 

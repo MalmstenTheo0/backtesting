@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   applyThemeToDocument,
@@ -7,9 +7,9 @@ import {
   type Theme,
 } from "./lib/themeStorage";
 import { useBacktest } from "./hooks/useBacktest";
-import { BacktestChart } from "./components/Chart/BacktestChart";
 import { ConfigPanel } from "./components/ConfigPanel/ConfigPanel";
 import { ResultsPanel } from "./components/ResultsPanel/ResultsPanel";
+import { ThemeToggle } from "./components/ThemeToggle/ThemeToggle";
 
 export default function App(): JSX.Element {
   const [theme, setTheme] = useState<Theme>(() => readStoredTheme());
@@ -23,6 +23,10 @@ export default function App(): JSX.Element {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
 
   const handleParametersChange = useCallback(() => {
     reset();
@@ -40,31 +44,7 @@ export default function App(): JSX.Element {
           MVP v0.1
         </span>
         <div className="flex-1" />
-        <button
-          type="button"
-          className="flex cursor-pointer select-none items-center gap-2 rounded-md p-1 transition-colors hover:bg-surface-2"
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-        >
-          <span className="text-xs font-medium tracking-wide text-text-muted">
-            {theme === "dark" ? "Dark" : "Light"}
-          </span>
-          <span
-            className={[
-              "relative h-[22px] w-10 shrink-0 rounded-full border transition-colors",
-              theme === "dark"
-                ? "border-accent bg-accent"
-                : "border-border-strong bg-border-strong",
-            ].join(" ")}
-          >
-            <span
-              className={[
-                "absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-300 ease-out",
-                theme === "dark" ? "translate-x-[18px]" : "translate-x-[3px]",
-              ].join(" ")}
-            />
-          </span>
-        </button>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </header>
 
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-5 px-8 pb-10 pt-5 md:grid-cols-[272px_1fr] md:items-start">
@@ -78,9 +58,11 @@ export default function App(): JSX.Element {
         />
 
         {hasResults && data ? (
-          <div className="flex flex-col gap-4 results-enter">
+          <div
+            key={`${data.summary.ticker}-${data.summary.start_date}-${data.summary.end_date}-${data.summary.amount_per_period}-${data.summary.frequency}-${data.summary.commission_pct}`}
+            className="flex flex-col gap-4 results-enter"
+          >
             <ResultsPanel data={data} />
-            <BacktestChart data={data} />
           </div>
         ) : null}
       </div>

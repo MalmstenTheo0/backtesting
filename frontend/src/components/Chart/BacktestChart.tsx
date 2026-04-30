@@ -17,6 +17,7 @@ export interface BacktestChartProps {
 
 export function BacktestChart({ data }: BacktestChartProps): JSX.Element {
   const chartData = data.chart_data;
+  const buyFrequency = data.summary.frequency;
 
   return (
     <div
@@ -96,6 +97,7 @@ export function BacktestChart({ data }: BacktestChartProps): JSX.Element {
           <YAxis
             yAxisId="price"
             orientation="right"
+            domain={["auto", "auto"]}
             tick={{ fill: "var(--chart-price)", fontSize: 11 }}
             tickLine={{ stroke: "var(--chart-price)" }}
             axisLine={false}
@@ -115,7 +117,7 @@ export function BacktestChart({ data }: BacktestChartProps): JSX.Element {
             name="Valor portfolio"
             stroke="var(--chart-portfolio)"
             strokeWidth={2}
-            dot={BuyDot}
+            dot={(props) => <BuyDot {...props} frequency={buyFrequency} />}
             isAnimationActive={false}
           />
           <Line
@@ -145,20 +147,42 @@ export function BacktestChart({ data }: BacktestChartProps): JSX.Element {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function BuyDot(props: any): JSX.Element {
-  const { cx, cy, payload } = props;
-  if (!payload?.is_buy || cx == null || cy == null) {
+type BuyDotProps = {
+  cx?: number;
+  cy?: number;
+  payload?: { is_buy?: boolean };
+  frequency: string;
+};
+
+function buyDotRadius(frequency: string): number | null {
+  if (frequency === "daily") {
+    return null;
+  }
+  if (frequency === "weekly") {
+    return 2;
+  }
+  return 4;
+}
+
+function BuyDot(props: BuyDotProps): JSX.Element {
+  const { cx, cy, payload, frequency } = props;
+  const r = buyDotRadius(frequency);
+  if (
+    r == null ||
+    !payload?.is_buy ||
+    cx == null ||
+    cy == null
+  ) {
     return <g />;
   }
   return (
     <circle
       cx={cx}
       cy={cy}
-      r={5}
+      r={r}
       fill="var(--chart-portfolio)"
       stroke="var(--surface)"
-      strokeWidth={2}
+      strokeWidth={frequency === "weekly" ? 1 : 2}
     />
   );
 }
