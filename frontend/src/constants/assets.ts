@@ -1,4 +1,4 @@
 import type { AssetItem } from "../types";
 
-/** Lista curada de activos (UI); debe alinearse con GET /api/v1/assets. */
+/** Lista estática vacía: la UI usa `GET /api/v1/assets` como fuente de verdad. */
 export const CURATED_ASSETS: AssetItem[] = [];

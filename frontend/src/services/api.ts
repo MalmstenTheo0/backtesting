@@ -8,16 +8,44 @@ import type {
 const API_BASE: string =
   import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+/** Serializa `detail` de respuestas FastAPI (string, lista de errores, u otros). */
+export function formatApiError(detail: unknown): string {
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    const parts = detail.map((item) => {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "msg" in item &&
+        typeof (item as { msg: unknown }).msg === "string"
+      ) {
+        const loc = (item as { loc?: unknown }).loc;
+        const locStr = Array.isArray(loc)
+          ? loc.filter((x) => typeof x === "string").join(".")
+          : "";
+        const msg = (item as { msg: string }).msg;
+        return locStr ? `${locStr}: ${msg}` : msg;
+      }
+      if (typeof item === "string") {
+        return item;
+      }
+      return JSON.stringify(item);
+    });
+    return parts.filter(Boolean).join(" · ");
+  }
+  if (typeof detail === "object" && detail !== null) {
+    return JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
 async function parseJsonError(res: Response): Promise<string> {
   try {
     const error: unknown = await res.json();
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "detail" in error &&
-      typeof (error as { detail: unknown }).detail === "string"
-    ) {
-      return (error as { detail: string }).detail;
+    if (typeof error === "object" && error !== null && "detail" in error) {
+      return formatApiError((error as { detail: unknown }).detail);
     }
   } catch {
     /* ignore */
