@@ -101,7 +101,16 @@ class Strategy(ABC):
         if frequency == "daily":
             return prices.index
         if frequency == "weekly":
-            return prices.resample("W-MON").first().dropna().index
+            # Primer día hábil de cada semana ISO (evita perder semanas si el lunes no está en el índice).
+            ic = prices.index.isocalendar()
+            first_per_week = prices.groupby(
+                [ic["year"], ic["week"]], sort=True
+            ).head(1)
+            return first_per_week.index
         if frequency == "monthly":
-            return prices.resample("MS").first().dropna().index
+            # Primer día hábil de cada mes calendario (evita perder meses si el día 1 no cotiza).
+            first_per_month = prices.groupby(
+                prices.index.to_period("M"), sort=True
+            ).head(1)
+            return first_per_month.index
         raise ValueError(f"Frecuencia no soportada: {frequency}")
