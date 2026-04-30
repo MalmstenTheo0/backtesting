@@ -68,7 +68,40 @@ class Strategy(ABC):
         total_capital: float,
         commission_pct: float,
     ) -> LumpSumComparison:
-        raise NotImplementedError
+        """
+        Helper compartido por todas las estrategias para calcular el lump sum.
+        Puede sobreescribirse si la estrategia necesita una comparación diferente.
+        """
+        first_price = prices.iloc[0]
+        last_price = prices.iloc[-1]
+        commission = total_capital * (commission_pct / 100)
+        units = (total_capital - commission) / first_price
+        final_value = units * last_price
+        return_pct = ((final_value - total_capital) / total_capital) * 100
+        years = (prices.index[-1] - prices.index[0]).days / 365.25
+        cagr = (
+            ((final_value / total_capital) ** (1 / years) - 1) * 100
+            if years > 0
+            else 0
+        )
+
+        return LumpSumComparison(
+            capital=round(total_capital, 2),
+            units_bought=round(units, 6),
+            final_value=round(final_value, 2),
+            return_pct=round(return_pct, 2),
+            cagr_pct=round(cagr, 2),
+        )
 
     def _get_period_dates(self, prices: pd.Series, frequency: str) -> pd.DatetimeIndex:
-        raise NotImplementedError
+        """
+        Helper para obtener las fechas de compra según la frecuencia.
+        Retorna las fechas del índice de prices que corresponden a cada período.
+        """
+        if frequency == "daily":
+            return prices.index
+        if frequency == "weekly":
+            return prices.resample("W-MON").first().dropna().index
+        if frequency == "monthly":
+            return prices.resample("MS").first().dropna().index
+        raise ValueError(f"Frecuencia no soportada: {frequency}")
