@@ -8,7 +8,7 @@ import {
 
 import { addYearsLocal, toIsoDateLocal } from "../../lib/format";
 import type { AssetItem, BacktestRequest, Frequency } from "../../types";
-import { fetchAssets } from "../../services/api";
+import { getAssets } from "../../services/api";
 import { AssetSelector } from "./AssetSelector";
 import { DateRangePicker } from "./DateRangePicker";
 import { FrequencySelector } from "./FrequencySelector";
@@ -62,7 +62,7 @@ export function ConfigPanel({
       setAssetsLoading(true);
       setAssetsError(null);
       try {
-        const res = await fetchAssets();
+        const res = await getAssets();
         if (cancelled) {
           return;
         }

@@ -61,7 +61,7 @@ export async function getHealth(): Promise<HealthResponse> {
   return res.json() as Promise<HealthResponse>;
 }
 
-export async function fetchAssets(): Promise<AssetsResponse> {
+export async function getAssets(): Promise<AssetsResponse> {
   const res = await fetch(`${API_BASE}/api/v1/assets`);
   if (!res.ok) {
     throw new Error(await parseJsonError(res));
