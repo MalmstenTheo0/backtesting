@@ -260,7 +260,7 @@ Verificar en la consola del browser que `chart_data` no está vacío en la respo
 
 ### Datos incorrectos para crypto en fechas antiguas
 
-Algunos tickers de crypto en Yahoo Finance tienen datos desde fechas específicas. Si `start_date` es anterior a `data_since` del activo, el fetcher retorna datos desde la fecha disponible más antigua, no desde `start_date`.
+La fuente es Binance; cada par tiene un `data_since` (listing) que coincide con lo documentado arriba. La serie guardada en caché empieza en esa fecha. Si `start_date` es anterior al primer dato pero `end_date` cae dentro del historial, el filtrado con pandas incluye velas desde la primera disponible en el rango, no desde `start_date` literal. Si el intervalo completo no cruza ninguna vela (por ejemplo `end_date` antes del listing de SOL), el backend devuelve error y el mensaje indica el rango de fechas con datos disponibles.
 
 ---
 
