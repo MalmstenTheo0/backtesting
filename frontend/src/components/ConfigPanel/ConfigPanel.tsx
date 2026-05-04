@@ -162,7 +162,7 @@ export function ConfigPanel({
       className="sticky top-[72px] flex flex-col gap-[18px] rounded-panel border border-border bg-surface p-5 shadow-panel"
       aria-label="Configuración"
     >
-      <div className="border-b border-border pb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-text-muted">
+      <div className="border-b border-border pb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-section-title">
         Configuración
       </div>
 
@@ -193,7 +193,7 @@ export function ConfigPanel({
               setAmount(Number(e.target.value));
               notify();
             }}
-            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
+            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] font-normal leading-normal text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
           />
         </div>
 
@@ -224,7 +224,7 @@ export function ConfigPanel({
                     notify();
                   }}
                   className={[
-                    "border-r border-border-strong py-2 px-1 text-center font-sans text-xs font-medium transition-colors last:border-r-0",
+                    "border-r border-border-strong px-1 py-2 text-center font-sans text-[13px] font-medium leading-normal transition-colors last:border-r-0",
                     active
                       ? "bg-accent text-white"
                       : "bg-surface-2 text-text-secondary hover:bg-surface",
@@ -266,7 +266,7 @@ export function ConfigPanel({
               setCommissionStr(e.target.value);
               notify();
             }}
-            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
+            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] font-normal leading-normal text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
           />
         </div>
 
@@ -282,7 +282,7 @@ export function ConfigPanel({
         <button
           type="submit"
           disabled={loading || !ticker || assetsLoading}
-          className="mt-0.5 flex h-10 w-full items-center justify-center rounded-control bg-accent font-sans text-[13px] font-semibold text-white transition-[background,transform] hover:bg-accent-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-0.5 flex h-10 w-full items-center justify-center rounded-control bg-accent font-sans text-[13px] font-semibold leading-normal text-white transition-[background,transform] hover:bg-accent-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Calculando…" : "Calcular"}
         </button>

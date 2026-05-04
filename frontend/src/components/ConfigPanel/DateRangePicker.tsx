@@ -75,7 +75,7 @@ export function DateRangePicker({
                 applyPreset(p.years);
               }}
               className={[
-                "rounded-control border py-1.5 text-center font-sans text-xs font-medium transition-colors",
+                "rounded-control border py-1.5 text-center font-sans text-[13px] font-medium leading-normal transition-colors",
                 active
                   ? "border-accent bg-accent-muted text-accent"
                   : "border-border-strong bg-surface-2 text-text-secondary hover:border-accent/50",
@@ -99,7 +99,7 @@ export function DateRangePicker({
             onChange={(e) => {
               onChange(e.target.value, endDate);
             }}
-            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
+            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] font-normal leading-normal text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -115,7 +115,7 @@ export function DateRangePicker({
             onChange={(e) => {
               onChange(startDate, e.target.value);
             }}
-            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
+            className="h-9 w-full rounded-control border border-border-strong bg-surface-2 px-2.5 font-sans text-[13px] font-normal leading-normal text-text-primary focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)]"
           />
         </div>
       </div>

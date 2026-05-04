@@ -24,8 +24,8 @@ export function BacktestChart({ data }: BacktestChartProps): JSX.Element {
       className="rounded-panel border border-border bg-surface p-5 shadow-panel"
       data-testid="backtest-chart"
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="text-[11px] font-medium uppercase tracking-[0.07em] text-text-muted">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="text-[11px] font-medium uppercase tracking-[0.07em] text-section-title">
           Evolución del portfolio
         </div>
         <div className="flex flex-wrap gap-4 text-xs text-text-secondary">

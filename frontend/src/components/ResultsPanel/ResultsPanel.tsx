@@ -72,29 +72,29 @@ export function ResultsPanel({ data }: ResultsPanelProps): JSX.Element {
       <ComparisonTable data={data} />
 
       <div className="rounded-panel border border-border bg-surface p-5 shadow-panel">
-        <div className="mb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-text-muted">
+        <div className="mb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-section-title">
           Últimas compras ejecutadas
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
-                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Fecha
                 </th>
-                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Precio
                 </th>
-                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Monto
                 </th>
-                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Comisión
                 </th>
-                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Unidades
                 </th>
-                <th className="border-b border-border pb-2.5 text-right text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                <th className="border-b border-border pb-2.5 text-right text-[11px] font-medium uppercase tracking-wide text-section-title">
                   Valor portfolio
                 </th>
               </tr>

@@ -24,7 +24,7 @@ export function AssetSelector({
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-text-secondary">Activo</label>
       <select
-        className="h-9 w-full cursor-pointer appearance-none rounded-control border border-border-strong bg-surface-2 py-0 pl-2.5 pr-7 font-sans text-[13px] text-text-primary transition-[border-color,background,color] focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)] disabled:opacity-60"
+        className="h-9 w-full cursor-pointer appearance-none rounded-control border border-border-strong bg-surface-2 py-0 pl-2.5 pr-7 font-sans text-[13px] font-normal leading-normal text-text-primary transition-[border-color,background,color] focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)] disabled:opacity-60"
         style={{
           backgroundImage: `url("${CHEVRON}")`,
           backgroundRepeat: "no-repeat",

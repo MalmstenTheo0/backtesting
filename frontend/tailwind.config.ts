@@ -21,6 +21,8 @@ export default {
         "text-primary": "var(--text-primary)",
         "text-secondary": "var(--text-secondary)",
         "text-muted": "var(--text-muted)",
+        "section-title": "var(--section-title)",
+        "metric-label": "var(--metric-label)",
         accent: "var(--accent)",
         "accent-hover": "var(--accent-hover)",
         positive: "var(--positive)",

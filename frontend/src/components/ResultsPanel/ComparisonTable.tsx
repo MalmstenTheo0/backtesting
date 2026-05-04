@@ -26,7 +26,7 @@ export function ComparisonTable({ data }: ComparisonTableProps): JSX.Element {
 
   return (
     <div className="rounded-panel border border-border bg-surface p-5 shadow-panel">
-      <div className="mb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-text-muted">
+      <div className="mb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-section-title">
         DCA vs Lump Sum
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -13,7 +13,7 @@ export function MetricCard({
 }: MetricCardProps): JSX.Element {
   return (
     <div className="rounded-panel border border-border bg-surface p-4 shadow-panel transition-colors md:px-[18px] md:py-4">
-      <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.05em] text-text-muted">
+      <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.05em] text-metric-label">
         {label}
       </div>
       <div
