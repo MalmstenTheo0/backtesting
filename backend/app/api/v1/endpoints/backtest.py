@@ -83,11 +83,26 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
         )
 
     try:
-        prices = get_prices(ticker, body.start_date, body.end_date)
+        prices = get_prices(
+            ticker, body.start_date, body.end_date, dca_frequency=body.frequency.value
+        )
     except ValueError as e:
+        msg = str(e)
+        # Límite de peticiones Alpha Vantage (throttle).
+        if "Alpha Vantage indica límite de frecuencia" in msg:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=msg,
+            ) from e
+        # Plan gratuito sin acceso a serie diaria completa u otro aviso de producto.
+        if "Alpha Vantage: con clave gratuita no está disponible" in msg:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=msg,
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
+            detail=msg,
         ) from e
 
     try:

@@ -1,5 +1,5 @@
 """
-Descarga de precios vía yfinance con caché CSV local (ver docs/ARCHITECTURE.md).
+Descarga de precios vía Binance (crypto) y Alpha Vantage (ETFs) con caché CSV local (Date, Close).
 """
 
 from __future__ import annotations
@@ -8,16 +8,71 @@ import os
 import time
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
-import yfinance as yf
 from dotenv import load_dotenv
 
 load_dotenv()
 
+from app.data.sources import alphavantage, binance
+
+ASSETS: list[dict[str, Any]] = [
+    {
+        "ticker": "BTC-USD",
+        "name": "Bitcoin",
+        "type": "crypto",
+        "binance_symbol": "BTCUSDT",
+        "data_since": date(2017, 8, 17),
+    },
+    {
+        "ticker": "ETH-USD",
+        "name": "Ethereum",
+        "type": "crypto",
+        "binance_symbol": "ETHUSDT",
+        "data_since": date(2017, 8, 17),
+    },
+    {
+        "ticker": "SOL-USD",
+        "name": "Solana",
+        "type": "crypto",
+        "binance_symbol": "SOLUSDT",
+        "data_since": date(2020, 8, 11),
+    },
+    {
+        "ticker": "SPY",
+        "name": "S&P 500 ETF",
+        "type": "etf",
+        "data_since": date(1993, 1, 29),
+    },
+    {
+        "ticker": "QQQ",
+        "name": "Nasdaq 100 ETF",
+        "type": "etf",
+        "data_since": date(1999, 3, 10),
+    },
+    {
+        "ticker": "VTI",
+        "name": "Total Market ETF",
+        "type": "etf",
+        "data_since": date(2001, 6, 15),
+    },
+]
+
+
+def get_assets() -> list[dict[str, Any]]:
+    """Metadatos de activos para la API; `data_since` en ISO YYYY-MM-DD (sin `binance_symbol`)."""
+    out: list[dict[str, Any]] = []
+    for a in ASSETS:
+        row = {k: v for k, v in a.items() if k != "binance_symbol"}
+        ds = row.get("data_since")
+        if isinstance(ds, date):
+            row = {**row, "data_since": ds.isoformat()}
+        out.append(row)
+    return out
+
 
 def _backend_root() -> Path:
-    # fetcher.py -> app/data -> app -> backend
     return Path(__file__).resolve().parents[2]
 
 
@@ -38,85 +93,89 @@ def _cache_is_fresh(cache_path: Path, max_age_hours: float) -> bool:
     return age_seconds < max_age_hours * 3600
 
 
-def _flatten_ohlcv_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """yfinance usa columnas MultiIndex; al guardar CSV conviene una sola fila de cabecera."""
-    out = df.copy()
-    if isinstance(out.columns, pd.MultiIndex):
-        out.columns = out.columns.droplevel(-1)
-    return out
+def _resolve_asset(ticker: str) -> dict[str, Any]:
+    for a in ASSETS:
+        if a["ticker"] == ticker:
+            return a
+    allowed = ", ".join(sorted(x["ticker"] for x in ASSETS))
+    raise ValueError(
+        f"Ticker no soportado: {ticker!r}. Use uno de los siguientes: {allowed}."
+    )
 
 
-def _read_first_line(path: Path) -> str:
-    with path.open("r", encoding="utf-8") as f:
-        return f.readline()
+def _etf_alphavantage_sampling(dca_frequency: str) -> str:
+    if dca_frequency == "monthly":
+        return "monthly"
+    if dca_frequency == "weekly":
+        return "weekly"
+    return "daily"
 
 
-def _read_cached_ohlcv(path: Path) -> pd.DataFrame:
+def _download_full_series(
+    ticker: str, meta: dict[str, Any], dca_frequency: str
+) -> pd.Series:
+    today = date.today()
+    if meta["type"] == "crypto":
+        return binance.fetch(
+            binance_symbol=meta["binance_symbol"],
+            ticker=ticker,
+            data_since=meta["data_since"],
+            end=today,
+        )
+    if meta["type"] == "etf":
+        sampling = _etf_alphavantage_sampling(dca_frequency)
+        return alphavantage.fetch(symbol=ticker, ticker=ticker, sampling=sampling)
+    raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
+
+
+def _cache_filename(ticker: str, meta: dict[str, Any], dca_frequency: str) -> str:
+    if meta["type"] == "crypto":
+        return f"{ticker}.csv"
+    suffix = _etf_alphavantage_sampling(dca_frequency)
+    return f"{ticker}_{suffix}.csv"
+
+
+def get_prices(
+    ticker: str, start: date, end: date, *, dca_frequency: str = "daily"
+) -> pd.Series:
     """
-    Lee CSV de caché. Compatibilidad: yfinance antiguo escribía varias filas de cabecera
-    (empieza con 'Price,'); el formato normalizado es una sola cabecera + índice Date.
-    """
-    first = _read_first_line(path)
-    if first.startswith("Price,"):
-        df = pd.read_csv(path, header=[0, 1], index_col=0)
-        df.index = pd.to_datetime(df.index, errors="coerce")
-        df = df[df.index.notna()]
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.droplevel(-1)
-        return df
-    return pd.read_csv(path, index_col=0, parse_dates=True)
+    Serie de cierre en el rango pedido (ETFs: Alpha Vantage; crypto: Binance, siempre velas diarias).
 
-
-def _close_series_from_ohlcv(df: pd.DataFrame) -> pd.Series:
-    if df.empty:
-        raise ValueError("El DataFrame de precios está vacío.")
-    close = df["Close"]
-    if isinstance(close, pd.DataFrame):
-        close = close.iloc[:, 0]
-    s = pd.Series(close, copy=True)
-    s.index = pd.to_datetime(s.index)
-    s = s.astype(float).sort_index()
-    return s
-
-
-def get_prices(ticker: str, start: date, end: date) -> pd.Series:
-    """
-    Obtiene la serie de precios de cierre ajustados para el ticker en el rango dado.
-
-    Usa caché en CSV si existe y no está vencido; si no, descarga con yfinance
-    y guarda el resultado completo (period=max).
+    Caché CSV con columnas Date y Close; si el archivo no existe o supera la antigüedad
+    configurada, se descarga la serie completa desde la fuente y se vuelve a escribir.
+    Para ETFs, la granularidad descargada depende de ``dca_frequency`` (daily / weekly / monthly)
+    para poder usar el plan gratuito de Alpha Vantage (``outputsize=full`` en diario es premium).
     """
     if start > end:
         raise ValueError(
             f"Rango de fechas inválido: start ({start}) es posterior a end ({end})."
         )
 
+    meta = _resolve_asset(ticker)
+
     cache_dir = _cache_dir_path()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_path = cache_dir / f"{ticker}.csv"
+    cache_path = cache_dir / _cache_filename(ticker, meta, dca_frequency)
     max_age_h = _cache_max_age_hours()
 
     use_cache = cache_path.exists() and _cache_is_fresh(cache_path, max_age_h)
 
     if use_cache:
-        df = _read_cached_ohlcv(cache_path)
+        df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
+        close = df["Close"].rename(ticker)
     else:
-        df = yf.download(
-            ticker,
-            period="max",
-            auto_adjust=True,
-            progress=False,
-        )
-        if df.empty:
+        raw = _download_full_series(ticker, meta, dca_frequency)
+        raw = raw.dropna()
+        if raw.empty:
             raise ValueError(
-                f"No se pudieron obtener datos de Yahoo Finance para el ticker {ticker!r} "
-                "(respuesta vacía o ticker inválido)."
+                f"No se pudieron obtener datos para el ticker {ticker!r} "
+                "(respuesta vacía o rango inválido en la fuente)."
             )
-        to_store = _flatten_ohlcv_columns(df)
-        to_store.index.name = "Date"
-        to_store.to_csv(cache_path)
+        raw.rename_axis("Date").reset_index(name="Close").to_csv(cache_path, index=False)
+        df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
+        close = df["Close"].rename(ticker)
 
-    close = _close_series_from_ohlcv(df)
+    close = close.astype(float).sort_index()
     close = close.dropna()
     if close.empty:
         raise ValueError(f"No hay serie de precios válida para el ticker {ticker!r}.")
@@ -131,4 +190,4 @@ def get_prices(ticker: str, start: date, end: date) -> pd.Series:
             f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
         )
 
-    return filtered.astype(float)
+    return filtered.astype(float).rename(ticker)

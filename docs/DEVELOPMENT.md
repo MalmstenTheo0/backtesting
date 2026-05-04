@@ -95,6 +95,9 @@ CACHE_MAX_AGE_HOURS=24
 
 # Orígenes permitidos para CORS (separados por coma)
 ALLOWED_ORIGINS=http://localhost:5173
+
+# Requerida para ETFs. Key gratuita en https://www.alphavantage.co/support/#api-key
+ALPHAVANTAGE_API_KEY=your_key_here
 ```
 
 ### Frontend (`frontend/.env`)
@@ -113,7 +116,7 @@ VITE_API_URL=http://localhost:8000
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.0
-yfinance==0.2.44
+requests==2.32.3
 pandas==2.2.3
 numpy==2.1.1
 python-dotenv==1.0.1
@@ -237,17 +240,15 @@ npm run lint
 
 ## Troubleshooting
 
-### yfinance falla con error 429 (rate limit)
+### Alpha Vantage devuelve error de límite para ETFs
 
-Ocurre cuando se hacen muchas requests seguidas sin caché. Solución:
+El plan gratuito permite 25 requests/día. Con el caché CSV esto raramente es un problema — cada ticker se descarga una sola vez por día. Si limpiaste el caché y pedís varios ETFs seguidos, esperá hasta el día siguiente o conseguí una key premium.
 
-```bash
-# Limpiar el caché para forzar re-descarga con delay
-rm app/data/cache/TICKER.csv
-# Esperar 30 segundos y volver a intentar
-```
+El DCA diario para ETFs con plan gratuito está limitado a ~100 sesiones (outputsize=compact). Para rangos largos en frecuencia diaria se necesita plan premium o configurar `ALPHAVANTAGE_DAILY_OUTPUTSIZE=full` con una key paga.
 
-El fetcher tiene un retry con backoff, pero Yahoo puede bloquear temporalmente IPs con muchas requests.
+### Binance no devuelve datos para una fecha
+
+Binance tiene datos desde la fecha de listing de cada par. BTC-USD desde 2017-08-17, ETH-USD desde 2017-08-17, SOL-USD desde 2020-08-11. Rangos anteriores a esas fechas retornan error.
 
 ### Error de CORS en el frontend
 

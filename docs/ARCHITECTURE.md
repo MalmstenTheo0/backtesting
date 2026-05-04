@@ -23,7 +23,7 @@
 │           ↓                     │
 │        Cache (CSV local)        │
 │           ↓                     │
-│        yfinance                 │
+│   Binance API / Alpha Vantage   │
 │                                 │
 │  Puerto: 8000 (dev)             │
 └─────────────────────────────────┘
@@ -90,7 +90,11 @@ dca-backtester/
         │   ├── dca.py                    # DCA Tradicional
         │   └── registry.py              # Mapa nombre → clase
         ├── data/
-        │   ├── fetcher.py               # yfinance wrapper con caché
+        │   ├── fetcher.py               # Dispatcher: Binance (crypto) o Alpha Vantage (ETFs)
+        │   ├── sources/
+        │   │   ├── __init__.py
+        │   │   ├── binance.py           # Klines públicos, sin API key
+        │   │   └── alphavantage.py      # TIME_SERIES_DAILY/WEEKLY/MONTHLY, requiere key
         │   └── cache/                   # CSVs por ticker (gitignored)
         └── models/
             ├── request.py               # Pydantic: BacktestRequest
@@ -102,38 +106,28 @@ dca-backtester/
 ## Decisiones técnicas
 
 ### Por qué FastAPI + Python
-El ecosistema financiero en Python (pandas, numpy, yfinance) no tiene equivalente en otros lenguajes. FastAPI provee una API REST asíncrona con validación automática via Pydantic y generación de docs OpenAPI sin configuración extra.
+El ecosistema financiero en Python (pandas, numpy, requests a APIs de mercado) no tiene equivalente en otros lenguajes. FastAPI provee una API REST asíncrona con validación automática via Pydantic y generación de docs OpenAPI sin configuración extra.
 
-### Por qué yfinance con caché local
+### Por qué Binance + Alpha Vantage con caché local
 
-**Problema:** yfinance no es una API oficial — scrapea Yahoo Finance. Puede fallar por rate limiting o cambios en la estructura de Yahoo.
+**Crypto (BTC, ETH, SOL):** Se usa la API pública de Binance (`/api/v3/klines`), sin API key. Devuelve velas OHLCV históricas con paginación de 1000 registros. Sin rate limiting severo para datos históricos.
 
-**Solución:** Sistema de caché en CSV local.
-- La primera vez que se pide un ticker, se descargan todos los datos históricos disponibles y se guardan en `backend/app/data/cache/{ticker}.csv`
-- Las siguientes llamadas leen del CSV
-- El CSV se refresca si tiene más de 24 horas (para obtener datos recientes)
+**ETFs (SPY, QQQ, VTI):** Se usa Alpha Vantage con API key gratuita. El endpoint varía según la frecuencia del backtest: `TIME_SERIES_MONTHLY` para DCA mensual, `TIME_SERIES_WEEKLY` para semanal, y `TIME_SERIES_DAILY` (compact) para diario. El historial completo en diario requiere plan premium.
 
-```python
-# Lógica del fetcher
-def get_prices(ticker: str, start: date, end: date) -> pd.Series:
-    cache_path = CACHE_DIR / f"{ticker}.csv"
-    
-    if cache_path.exists() and not is_stale(cache_path):
-        df = pd.read_csv(cache_path, index_col=0, parse_dates=True)
-    else:
-        df = yf.download(ticker, period="max", auto_adjust=True)
-        df.to_csv(cache_path)
-    
-    return df["Close"].loc[start:end]
-```
+**Caché CSV:** igual que antes — primera descarga completa, se guarda en `cache/{ticker}_{sampling}.csv` con columnas `Date,Close`. Las llamadas siguientes leen del CSV si tiene menos de 24 horas.
 
-**Por qué no Alpha Vantage / FMP / Polygon:**
-- Alpha Vantage: 25 requests/día en free tier — inviable para un backtester interactivo
-- FMP: 250 requests/día — marginal, requiere API key
-- Polygon: free tier muy limitado (5 calls/min, 2 años de historia)
-- yfinance + caché elimina la mayoría de los problemas de rate limiting porque la red se toca una sola vez por ticker
+**Swap path:** si alguna fuente falla, solo hay que tocar `sources/binance.py` o `sources/alphavantage.py`. El dispatcher y el resto del sistema no cambian.
 
-**Swap path:** Si yfinance se vuelve inestable, el fetcher está aislado en `data/fetcher.py`. Cambiar la implementación no afecta las estrategias ni los endpoints.
+### Activos soportados
+
+| Ticker   | Tipo   |
+|----------|--------|
+| BTC-USD  | Crypto |
+| ETH-USD  | Crypto |
+| SOL-USD  | Crypto |
+| SPY      | ETF    |
+| QQQ      | ETF    |
+| VTI      | ETF    |
 
 ### Por qué la estrategia es una clase abstracta
 
@@ -197,7 +191,7 @@ ALLOWED_ORIGINS=http://localhost:5173
 
 El cálculo DCA es O(n) donde n es la cantidad de períodos. Para un DCA diario de 10 años son ~3650 iteraciones — prácticamente instantáneo en Python/pandas.
 
-El cuello de botella real es la primera descarga de datos via yfinance. Con el caché, las llamadas subsiguientes son <50ms.
+El cuello de botella real es la primera descarga de datos vía Binance o Alpha Vantage. Con el caché, las llamadas subsiguientes son <50ms.
 
 ---
 
