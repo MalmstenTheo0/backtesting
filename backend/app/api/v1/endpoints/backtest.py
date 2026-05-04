@@ -15,6 +15,48 @@ from app.strategies.registry import get_strategy
 
 router = APIRouter()
 
+_500_DETAIL = "Internal server error. Please try again."
+
+
+def _value_error_to_http(e: ValueError) -> HTTPException:
+    msg = str(e)
+    if "Alpha Vantage indica límite de frecuencia" in msg:
+        return HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=msg,
+        )
+    if "Alpha Vantage: con clave gratuita no está disponible" in msg:
+        return HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=msg,
+        )
+    lower = msg.lower()
+    if (
+        "no encontrado" in lower
+        or "ticker inválido" in lower
+        or "ticker no soportado" in lower
+    ):
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=msg,
+        )
+    needles_422 = (
+        "no disponible",
+        "rango",
+        "start_date",
+        "anterior",
+        "mínimo",
+    )
+    if any(n in lower for n in needles_422):
+        return HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=msg,
+        )
+    return HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=msg,
+    )
+
 
 def _request_to_params(body: BacktestRequest) -> dict:
     return {
@@ -87,23 +129,7 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
             ticker, body.start_date, body.end_date, dca_frequency=body.frequency.value
         )
     except ValueError as e:
-        msg = str(e)
-        # Límite de peticiones Alpha Vantage (throttle).
-        if "Alpha Vantage indica límite de frecuencia" in msg:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=msg,
-            ) from e
-        # Plan gratuito sin acceso a serie diaria completa u otro aviso de producto.
-        if "Alpha Vantage: con clave gratuita no está disponible" in msg:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=msg,
-            ) from e
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=msg,
-        ) from e
+        raise _value_error_to_http(e) from e
 
     try:
         strategy = get_strategy(body.strategy.value)
@@ -122,5 +148,5 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            detail=_500_DETAIL,
         ) from None

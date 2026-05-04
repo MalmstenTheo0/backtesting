@@ -11,7 +11,15 @@ import type { AssetItem, BacktestRequest, Frequency } from "../../types";
 import { getAssets } from "../../services/api";
 import { AssetSelector } from "./AssetSelector";
 import { DateRangePicker } from "./DateRangePicker";
-import { FrequencySelector } from "./FrequencySelector";
+
+const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+  { value: "daily", label: "Diaria" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensual" },
+];
+
+const ETF_DAILY_DISABLED_TITLE =
+  "No disponible para ETFs en plan gratuito";
 
 function defaultDateRange(): { start: string; end: string } {
   const end = new Date();
@@ -87,6 +95,18 @@ export function ConfigPanel({
       cancelled = true;
     };
   }, []);
+
+  const selectedAsset = useMemo(
+    () => assets.find((a) => a.ticker === ticker),
+    [assets, ticker],
+  );
+
+  useEffect(() => {
+    if (selectedAsset?.type === "etf" && frequency === "daily") {
+      setFrequency("monthly");
+      notify();
+    }
+  }, [selectedAsset?.type, frequency, notify]);
 
   const handleDatesChange = useCallback(
     (start: string, end: string) => {
@@ -181,14 +201,43 @@ export function ConfigPanel({
           <label className="text-xs font-medium text-text-secondary">
             Frecuencia
           </label>
-          <FrequencySelector
-            value={frequency}
-            disabled={loading}
-            onChange={(f) => {
-              setFrequency(f);
-              notify();
-            }}
-          />
+          <div
+            className="grid grid-cols-3 overflow-hidden rounded-control border border-border-strong"
+            role="group"
+            aria-label="Frecuencia"
+          >
+            {FREQUENCY_OPTIONS.map((opt) => {
+              const active = frequency === opt.value;
+              const dailyBlocked =
+                opt.value === "daily" && selectedAsset?.type === "etf";
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={loading || dailyBlocked}
+                  title={dailyBlocked ? ETF_DAILY_DISABLED_TITLE : undefined}
+                  onClick={() => {
+                    if (dailyBlocked) {
+                      return;
+                    }
+                    setFrequency(opt.value);
+                    notify();
+                  }}
+                  className={[
+                    "border-r border-border-strong py-2 px-1 text-center font-sans text-xs font-medium transition-colors last:border-r-0",
+                    active
+                      ? "bg-accent text-white"
+                      : "bg-surface-2 text-text-secondary hover:bg-surface",
+                    dailyBlocked
+                      ? "cursor-not-allowed opacity-50 hover:bg-surface-2"
+                      : "",
+                  ].join(" ")}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <DateRangePicker

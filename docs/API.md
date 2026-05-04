@@ -32,25 +32,19 @@ Devuelve la lista curada de activos soportados.
       "ticker": "BTC-USD",
       "name": "Bitcoin",
       "type": "crypto",
-      "data_since": "2014-09-17"
+      "data_since": "2017-08-17"
     },
     {
       "ticker": "ETH-USD",
       "name": "Ethereum",
       "type": "crypto",
-      "data_since": "2015-08-07"
+      "data_since": "2017-08-17"
     },
     {
       "ticker": "SOL-USD",
       "name": "Solana",
       "type": "crypto",
-      "data_since": "2020-04-10"
-    },
-    {
-      "ticker": "BNB-USD",
-      "name": "BNB",
-      "type": "crypto",
-      "data_since": "2017-11-09"
+      "data_since": "2020-08-11"
     },
     {
       "ticker": "SPY",
@@ -69,42 +63,6 @@ Devuelve la lista curada de activos soportados.
       "name": "Total Market ETF",
       "type": "etf",
       "data_since": "2001-06-15"
-    },
-    {
-      "ticker": "VOO",
-      "name": "Vanguard S&P 500",
-      "type": "etf",
-      "data_since": "2010-09-09"
-    },
-    {
-      "ticker": "AAPL",
-      "name": "Apple",
-      "type": "stock",
-      "data_since": "1980-12-12"
-    },
-    {
-      "ticker": "MSFT",
-      "name": "Microsoft",
-      "type": "stock",
-      "data_since": "1986-03-13"
-    },
-    {
-      "ticker": "NVDA",
-      "name": "NVIDIA",
-      "type": "stock",
-      "data_since": "1999-01-22"
-    },
-    {
-      "ticker": "AMZN",
-      "name": "Amazon",
-      "type": "stock",
-      "data_since": "1997-05-16"
-    },
-    {
-      "ticker": "GOOGL",
-      "name": "Alphabet",
-      "type": "stock",
-      "data_since": "2004-08-19"
     }
   ]
 }
@@ -115,6 +73,10 @@ Devuelve la lista curada de activos soportados.
 ## POST /api/v1/backtest
 
 Ejecuta un backtest y devuelve métricas y datos para el gráfico.
+
+Los precios de **cripto** provienen de la API pública de Binance; los de **ETFs** de Alpha Vantage (con caché local configurable en el servidor).
+
+> **Nota:** la frecuencia `"daily"` **no está disponible para ETFs** (`SPY`, `QQQ`, `VTI`) en el plan gratuito de datos. Para esos activos usá `"weekly"` o `"monthly"`. Las peticiones con ETF + `daily` reciben **422**.
 
 ### Request Body
 
@@ -134,7 +96,7 @@ Ejecuta un backtest y devuelve métricas y datos para el gráfico.
 |---|---|---|---|
 | `ticker` | string | ✅ | Ticker del activo. Debe existir en `/assets` |
 | `amount_per_period` | float | ✅ | Monto a invertir por período en USD. Mínimo: 1.0 |
-| `frequency` | enum | ✅ | `"daily"` / `"weekly"` / `"monthly"` |
+| `frequency` | enum | ✅ | `"daily"` / `"weekly"` / `"monthly"`. Ver nota arriba para ETFs. |
 | `start_date` | string (YYYY-MM-DD) | ✅ | Fecha de inicio del backtest |
 | `end_date` | string (YYYY-MM-DD) | ✅ | Fecha de fin del backtest |
 | `commission_pct` | float | ❌ | Comisión por operación en %. Default: 0.0 |
@@ -147,6 +109,7 @@ Ejecuta un backtest y devuelve métricas y datos para el gráfico.
 - `ticker` debe pertenecer a la lista curada
 - `amount_per_period` debe ser > 0
 - `commission_pct` debe estar entre 0 y 100
+- ETF + `frequency: "daily"` → rechazado (422)
 
 ### Response 200
 
@@ -244,23 +207,55 @@ Ejecuta un backtest y devuelve métricas y datos para el gráfico.
 
 ### Response 422 — Validation Error
 
+Errores de validación del body (Pydantic), rango de fechas, rango mínimo de 30 días, ETF con frecuencia diaria, ticker no curado, u otros errores de negocio devueltos como 422.
+
+**Ejemplo — orden de fechas**
+
 ```json
 {
   "detail": [
     {
-      "loc": ["body", "start_date"],
-      "msg": "start_date must be before end_date",
-      "type": "value_error"
+      "type": "value_error",
+      "loc": ["body"],
+      "msg": "Value error, start_date debe ser anterior a end_date",
+      "input": { }
     }
   ]
 }
 ```
 
-### Response 404 — Ticker no encontrado en caché y falla yfinance
+**Ejemplo — ETF con frecuencia diaria**
 
 ```json
 {
-  "detail": "No data available for ticker 'XYZ' in the requested date range"
+  "detail": [
+    {
+      "type": "value_error",
+      "loc": ["body"],
+      "msg": "Value error, La frecuencia diaria no está disponible para ETFs en el plan gratuito. Usá frecuencia semanal o mensual.",
+      "input": { }
+    }
+  ]
+}
+```
+
+(El texto exacto de `msg` puede variar ligeramente según la versión de Pydantic; el mensaje de negocio es el indicado arriba.)
+
+### Response 404 — Recurso / ticker no encontrado en la fuente
+
+Cuando el mensaje de error indica explícitamente recurso no encontrado o ticker no soportado por la capa de datos, por ejemplo:
+
+```json
+{
+  "detail": "Ticker no soportado: 'XYZ'. Use uno de los siguientes: BTC-USD, ETH-USD, QQQ, SOL-USD, SPY, VTI."
+}
+```
+
+### Response 429 — Límite de frecuencia (Alpha Vantage)
+
+```json
+{
+  "detail": "Alpha Vantage indica límite de frecuencia (p. ej. 5 peticiones/minuto en el plan gratuito). Espera unos minutos o revisa tu cuota en alphavantage.co."
 }
 ```
 
