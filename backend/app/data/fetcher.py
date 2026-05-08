@@ -5,6 +5,7 @@ Descarga de precios vía Binance (crypto) y Alpha Vantage (ETFs) con caché CSV 
 from __future__ import annotations
 
 import os
+import threading
 import time
 from datetime import date
 from pathlib import Path
@@ -93,6 +94,48 @@ def _cache_is_fresh(cache_path: Path, max_age_hours: float) -> bool:
     return age_seconds < max_age_hours * 3600
 
 
+_MAX_DATA_STALENESS_DAYS: dict[str, int] = {"crypto": 1, "etf": 3}
+
+
+def _cache_needs_update(cache_path: Path, ticker_type: str) -> bool:
+    """Decide si el caché necesita re-descarga considerando antigüedad y frescura de datos."""
+    max_age_h = _cache_max_age_hours()
+    if not _cache_is_fresh(cache_path, max_age_h):
+        return True
+    try:
+        last_date = (
+            pd.read_csv(cache_path, usecols=["Date"], parse_dates=["Date"])
+            .iloc[-1]["Date"]
+            .date()
+        )
+    except Exception:
+        return True
+    staleness = _MAX_DATA_STALENESS_DAYS.get(ticker_type, 3)
+    return (date.today() - last_date).days > staleness
+
+
+_ticker_locks: dict[str, threading.Lock] = {}
+_ticker_locks_mutex = threading.Lock()
+
+
+def _get_lock(cache_key: str) -> threading.Lock:
+    with _ticker_locks_mutex:
+        if cache_key not in _ticker_locks:
+            _ticker_locks[cache_key] = threading.Lock()
+        return _ticker_locks[cache_key]
+
+
+def _read_cache_validated(path: Path) -> pd.DataFrame | None:
+    """Lee el CSV cacheado y retorna None si está corrupto, vacío o le falta 'Close'."""
+    try:
+        df = pd.read_csv(path, index_col="Date", parse_dates=True)
+    except Exception:
+        return None
+    if df.empty or "Close" not in df.columns:
+        return None
+    return df
+
+
 def _resolve_asset(ticker: str) -> dict[str, Any]:
     for a in ASSETS:
         if a["ticker"] == ticker:
@@ -103,17 +146,7 @@ def _resolve_asset(ticker: str) -> dict[str, Any]:
     )
 
 
-def _etf_alphavantage_sampling(dca_frequency: str) -> str:
-    if dca_frequency == "monthly":
-        return "monthly"
-    if dca_frequency == "weekly":
-        return "weekly"
-    return "daily"
-
-
-def _download_full_series(
-    ticker: str, meta: dict[str, Any], dca_frequency: str
-) -> pd.Series:
+def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
     today = date.today()
     if meta["type"] == "crypto":
         return binance.fetch(
@@ -123,16 +156,12 @@ def _download_full_series(
             end=today,
         )
     if meta["type"] == "etf":
-        sampling = _etf_alphavantage_sampling(dca_frequency)
-        return alphavantage.fetch(symbol=ticker, ticker=ticker, sampling=sampling)
+        return alphavantage.fetch(symbol=ticker, ticker=ticker)
     raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
 
 
-def _cache_filename(ticker: str, meta: dict[str, Any], dca_frequency: str) -> str:
-    if meta["type"] == "crypto":
-        return f"{ticker}.csv"
-    suffix = _etf_alphavantage_sampling(dca_frequency)
-    return f"{ticker}_{suffix}.csv"
+def _cache_filename(ticker: str) -> str:
+    return f"{ticker}.csv"
 
 
 def get_prices(
@@ -143,8 +172,8 @@ def get_prices(
 
     Caché CSV con columnas Date y Close; si el archivo no existe o supera la antigüedad
     configurada, se descarga la serie completa desde la fuente y se vuelve a escribir.
-    Para ETFs, la granularidad descargada depende de ``dca_frequency`` (daily / weekly / monthly)
-    para poder usar el plan gratuito de Alpha Vantage (``outputsize=full`` en diario es premium).
+    Tanto crypto como ETFs se cachean como serie diaria en un único archivo por ticker.
+    Para DCA weekly/monthly, el resampleo se aplica en memoria después de leer el caché.
     """
     if start > end:
         raise ValueError(
@@ -155,30 +184,39 @@ def get_prices(
 
     cache_dir = _cache_dir_path()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_path = cache_dir / _cache_filename(ticker, meta, dca_frequency)
-    max_age_h = _cache_max_age_hours()
+    cache_name = _cache_filename(ticker)
+    cache_path = cache_dir / cache_name
 
-    use_cache = cache_path.exists() and _cache_is_fresh(cache_path, max_age_h)
+    with _get_lock(cache_name):
+        df: pd.DataFrame | None = None
 
-    if use_cache:
-        df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
-        close = df["Close"].rename(ticker)
-    else:
-        raw = _download_full_series(ticker, meta, dca_frequency)
-        raw = raw.dropna()
-        if raw.empty:
-            raise ValueError(
-                f"No se pudieron obtener datos para el ticker {ticker!r} "
-                "(respuesta vacía o rango inválido en la fuente)."
+        if cache_path.exists() and not _cache_needs_update(cache_path, meta["type"]):
+            df = _read_cache_validated(cache_path)
+
+        if df is None:
+            raw = _download_full_series(ticker, meta)
+            raw = raw.dropna()
+            if raw.empty:
+                raise ValueError(
+                    f"No se pudieron obtener datos para el ticker {ticker!r} "
+                    "(respuesta vacía o rango inválido en la fuente)."
+                )
+            raw.rename_axis("Date").reset_index(name="Close").to_csv(
+                cache_path, index=False
             )
-        raw.rename_axis("Date").reset_index(name="Close").to_csv(cache_path, index=False)
-        df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
-        close = df["Close"].rename(ticker)
+            df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
+
+    close = df["Close"].rename(ticker)
 
     close = close.astype(float).sort_index()
     close = close.dropna()
     if close.empty:
         raise ValueError(f"No hay serie de precios válida para el ticker {ticker!r}.")
+
+    if dca_frequency == "weekly":
+        close = close.resample("W-MON").first().dropna()
+    elif dca_frequency == "monthly":
+        close = close.resample("MS").first().dropna()
 
     ts_start = pd.Timestamp(start)
     ts_end = pd.Timestamp(end)

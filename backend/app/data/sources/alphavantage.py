@@ -73,14 +73,18 @@ def _parse_ohlcv_block(
     return s.astype(float).sort_index()
 
 
-def fetch(*, symbol: str, ticker: str, sampling: str = "daily") -> pd.Series:
+def fetch(*, symbol: str, ticker: str) -> pd.Series:
     """
-    Precios de cierre desde Alpha Vantage.
+    Precios de cierre diarios desde Alpha Vantage (TIME_SERIES_DAILY).
 
-    - ``daily``: TIME_SERIES_DAILY. Tamaño vía ``ALPHAVANTAGE_DAILY_OUTPUTSIZE``
-      (``compact`` ≈ 100 puntos, gratuito; ``full`` requiere clave premium).
-    - ``weekly``: TIME_SERIES_WEEKLY (20+ años, un punto por semana).
-    - ``monthly``: TIME_SERIES_MONTHLY (20+ años, un punto por mes).
+    El resampleo a weekly/monthly se hace en fetcher.py en memoria, evitando
+    múltiples llamadas a la API y archivos de caché duplicados por frecuencia.
+
+    NOTA sobre ALPHAVANTAGE_DAILY_OUTPUTSIZE: con ``compact`` (default en plan
+    gratuito) solo se obtienen ~100 puntos de datos. Para historial completo se
+    necesita ``full``, que requiere clave premium. Si el .env tiene
+    ``ALPHAVANTAGE_DAILY_OUTPUTSIZE=compact``, la unificación de caché funciona
+    correctamente pero la profundidad de datos queda limitada a ~100 días.
     """
     key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
     if not key:
@@ -90,33 +94,17 @@ def fetch(*, symbol: str, ticker: str, sampling: str = "daily") -> pd.Series:
             "y configúrala en el entorno o en backend/.env."
         )
 
-    if sampling == "monthly":
-        params: dict[str, str] = {
-            "function": "TIME_SERIES_MONTHLY",
-            "symbol": symbol,
-            "apikey": key,
-        }
-        block_key = "Monthly Time Series"
-    elif sampling == "weekly":
-        params = {
-            "function": "TIME_SERIES_WEEKLY",
-            "symbol": symbol,
-            "apikey": key,
-        }
-        block_key = "Weekly Time Series"
-    elif sampling == "daily":
-        out = (os.getenv("ALPHAVANTAGE_DAILY_OUTPUTSIZE") or "compact").strip().lower()
-        if out not in ("compact", "full"):
-            out = "compact"
-        params = {
-            "function": "TIME_SERIES_DAILY",
-            "symbol": symbol,
-            "outputsize": out,
-            "apikey": key,
-        }
-        block_key = "Time Series (Daily)"
-    else:
-        raise ValueError(f"sampling Alpha Vantage no soportado: {sampling!r}")
+    out = (os.getenv("ALPHAVANTAGE_DAILY_OUTPUTSIZE") or "compact").strip().lower()
+    if out not in ("compact", "full"):
+        out = "compact"
+
+    params: dict[str, str] = {
+        "function": "TIME_SERIES_DAILY",
+        "symbol": symbol,
+        "outputsize": out,
+        "apikey": key,
+    }
+    block_key = "Time Series (Daily)"
 
     payload = _get_json_with_retry(params)
     _raise_if_av_root_messages(payload)
