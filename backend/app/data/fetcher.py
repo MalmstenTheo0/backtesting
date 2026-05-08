@@ -223,6 +223,12 @@ def get_prices(
     filtered = close.loc[ts_start:ts_end]
 
     if filtered.empty:
+        if close.empty:
+            raise ValueError(
+                f"No hay datos de precios para {ticker!r} en el rango {start} -> {end} "
+                f"con frecuencia DCA {dca_frequency!r}: la serie queda vacía tras el "
+                f"remuestreo. Prueba a ampliar el rango de fechas o usar frecuencia diaria."
+            )
         raise ValueError(
             f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
             f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
