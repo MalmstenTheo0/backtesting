@@ -56,10 +56,10 @@ def _parse_ohlcv_block(
     symbol: str,
     ticker: str,
     series_label: str,
+    close_key: str = "4. close",
 ) -> pd.Series:
     idx: list[pd.Timestamp] = []
     vals: list[float] = []
-    close_key = "4. close"
     for day_str, row in series_block.items():
         if not isinstance(row, dict) or close_key not in row:
             continue
@@ -122,3 +122,49 @@ def fetch(*, symbol: str, ticker: str) -> pd.Series:
         )
 
     return _parse_ohlcv_block(series_block, symbol=symbol, ticker=ticker, series_label=block_key)
+
+
+def fetch_weekly_adjusted(*, symbol: str, ticker: str) -> pd.Series:
+    """
+    Cierre semanal ajustado (TIME_SERIES_WEEKLY_ADJUSTED).
+
+    En plan gratuito suele devolver décadas de historia en una sola petición, a
+    diferencia de TIME_SERIES_DAILY con ``outputsize=compact`` (~100 días).
+    """
+    key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
+    if not key:
+        raise ValueError(
+            "Falta la variable de entorno ALPHAVANTAGE_API_KEY. "
+            "Consigue una clave gratuita en https://www.alphavantage.co/support/#api-key "
+            "y configúrala en el entorno o en backend/.env."
+        )
+
+    params: dict[str, str] = {
+        "function": "TIME_SERIES_WEEKLY_ADJUSTED",
+        "symbol": symbol,
+        "apikey": key,
+    }
+    block_key = "Weekly Adjusted Time Series"
+
+    payload = _get_json_with_retry(params)
+    _raise_if_av_root_messages(payload)
+
+    if "Error Message" in payload:
+        raise ValueError(
+            f"Alpha Vantage rechazó la petición: {payload['Error Message']}"
+        )
+
+    series_block = payload.get(block_key)
+    if not isinstance(series_block, dict) or not series_block:
+        raise ValueError(
+            f"No se pudo leer {block_key!r} de Alpha Vantage para {symbol!r}. "
+            f"Claves en la respuesta: {list(payload.keys())!r}"
+        )
+
+    return _parse_ohlcv_block(
+        series_block,
+        symbol=symbol,
+        ticker=ticker,
+        series_label=block_key,
+        close_key="5. adjusted close",
+    )

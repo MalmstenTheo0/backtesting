@@ -94,7 +94,7 @@ def _cache_is_fresh(cache_path: Path, max_age_hours: float) -> bool:
     return age_seconds < max_age_hours * 3600
 
 
-_MAX_DATA_STALENESS_DAYS: dict[str, int] = {"crypto": 1, "etf": 3}
+_MAX_DATA_STALENESS_DAYS: dict[str, int] = {"crypto": 1, "etf": 7}
 
 
 def _cache_needs_update(cache_path: Path, ticker_type: str) -> bool:
@@ -146,7 +146,9 @@ def _resolve_asset(ticker: str) -> dict[str, Any]:
     )
 
 
-def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
+def _download_full_series(
+    ticker: str, meta: dict[str, Any], *, dca_frequency: str
+) -> pd.Series:
     today = date.today()
     if meta["type"] == "crypto":
         return binance.fetch(
@@ -156,11 +158,16 @@ def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
             end=today,
         )
     if meta["type"] == "etf":
+        if dca_frequency in ("weekly", "monthly"):
+            return alphavantage.fetch_weekly_adjusted(symbol=ticker, ticker=ticker)
         return alphavantage.fetch(symbol=ticker, ticker=ticker)
     raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
 
 
-def _cache_filename(ticker: str) -> str:
+def _cache_filename(ticker: str, meta: dict[str, Any], dca_frequency: str) -> str:
+    """Crypto y ETF diario: ``TICKER.csv``. ETF semanal/mensual: serie larga vía weekly adjusted."""
+    if meta["type"] == "etf" and dca_frequency in ("weekly", "monthly"):
+        return f"{ticker}_wav.csv"
     return f"{ticker}.csv"
 
 
@@ -168,12 +175,12 @@ def get_prices(
     ticker: str, start: date, end: date, *, dca_frequency: str = "daily"
 ) -> pd.Series:
     """
-    Serie de cierre en el rango pedido (ETFs: Alpha Vantage; crypto: Binance, siempre velas diarias).
+    Serie de cierre en el rango pedido.
 
-    Caché CSV con columnas Date y Close; si el archivo no existe o supera la antigüedad
-    configurada, se descarga la serie completa desde la fuente y se vuelve a escribir.
-    Tanto crypto como ETFs se cachean como serie diaria en un único archivo por ticker.
-    Para DCA weekly/monthly, el resampleo se aplica en memoria después de leer el caché.
+    Crypto: Binance (velas diarias). ETFs: Alpha Vantage — para DCA semanal o mensual
+    se usa ``TIME_SERIES_WEEKLY_ADJUSTED`` (historial largo en plan gratuito); para
+    diario, ``TIME_SERIES_DAILY`` (típicamente ``compact``). Caché CSV (Date, Close).
+    El resampleo a buckets DCA se aplica en memoria después de leer el caché.
     """
     if start > end:
         raise ValueError(
@@ -184,7 +191,7 @@ def get_prices(
 
     cache_dir = _cache_dir_path()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_name = _cache_filename(ticker)
+    cache_name = _cache_filename(ticker, meta, dca_frequency)
     cache_path = cache_dir / cache_name
 
     with _get_lock(cache_name):
@@ -194,7 +201,7 @@ def get_prices(
             df = _read_cache_validated(cache_path)
 
         if df is None:
-            raw = _download_full_series(ticker, meta)
+            raw = _download_full_series(ticker, meta, dca_frequency=dca_frequency)
             raw = raw.dropna()
             if raw.empty:
                 raise ValueError(
