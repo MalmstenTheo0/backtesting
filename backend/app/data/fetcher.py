@@ -212,30 +212,31 @@ def get_prices(
 
     close = df["Close"].rename(ticker)
 
-    close = close.astype(float).sort_index()
-    close = close.dropna()
+    close = close.astype(float).sort_index().dropna()
     if close.empty:
         raise ValueError(f"No hay serie de precios válida para el ticker {ticker!r}.")
 
-    if dca_frequency == "weekly":
-        close = close.resample("W-MON").first().dropna()
-    elif dca_frequency == "monthly":
-        close = close.resample("MS").first().dropna()
-
     ts_start = pd.Timestamp(start)
     ts_end = pd.Timestamp(end)
-    filtered = close.loc[ts_start:ts_end]
+    window = close.loc[ts_start:ts_end]
+
+    if dca_frequency == "weekly":
+        filtered = window.resample("W-MON").first().dropna()
+    elif dca_frequency == "monthly":
+        filtered = window.resample("MS").first().dropna()
+    else:
+        filtered = window
 
     if filtered.empty:
-        if close.empty:
+        if window.empty:
             raise ValueError(
-                f"No hay datos de precios para {ticker!r} en el rango {start} -> {end} "
-                f"con frecuencia DCA {dca_frequency!r}: la serie queda vacía tras el "
-                f"remuestreo. Prueba a ampliar el rango de fechas o usar frecuencia diaria."
+                f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
+                f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
             )
         raise ValueError(
-            f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
-            f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
+            f"No hay datos de precios para {ticker!r} en el rango {start} -> {end} "
+            f"con frecuencia DCA {dca_frequency!r}: la serie queda vacía tras el "
+            f"remuestreo. Prueba a ampliar el rango de fechas o usar frecuencia diaria."
         )
 
     return filtered.astype(float).rename(ticker)
