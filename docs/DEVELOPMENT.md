@@ -244,7 +244,7 @@ npm run lint
 
 El plan gratuito permite 25 requests/día. Con el caché CSV esto raramente es un problema — cada ticker se descarga una sola vez por día. Si limpiaste el caché y pedís varios ETFs seguidos, esperá hasta el día siguiente o conseguí una key premium.
 
-El DCA diario para ETFs con plan gratuito está limitado a ~100 sesiones (outputsize=compact). Para rangos largos en frecuencia diaria se necesita plan premium o configurar `ALPHAVANTAGE_DAILY_OUTPUTSIZE=full` con una key paga.
+Los ETFs se cargan con `TIME_SERIES_WEEKLY_ADJUSTED` (historial largo en plan gratuito); el DCA diario/semanal/mensual se obtiene remuestreando esa serie en memoria después del caché.
 
 ### Binance no devuelve datos para una fecha
 

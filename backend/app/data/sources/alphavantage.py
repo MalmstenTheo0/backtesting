@@ -39,10 +39,8 @@ def _raise_if_av_root_messages(payload: Any) -> None:
         low = info.lower()
         if "premium" in low or "outputsize=full" in low or ("output size" in low and "full" in low):
             raise ValueError(
-                "Alpha Vantage: con clave gratuita no está disponible outputsize=full en TIME_SERIES_DAILY "
-                "(serie diaria de años). Para DCA diario con rangos largos hace falta un plan premium "
-                "(alphavantage.co/premium/) o usa frecuencia semanal/mensual, que descargan series con historial "
-                "largo sin ese límite."
+                "Alpha Vantage: respuesta de plan premium requerida. "
+                "Verificá que ALPHAVANTAGE_API_KEY en .env sea válida y activa."
             )
         raise ValueError(
             "Alpha Vantage devolvió un mensaje informativo (no serie de precios). "
@@ -74,17 +72,14 @@ def _parse_ohlcv_block(
 
 
 def fetch(*, symbol: str, ticker: str) -> pd.Series:
+    # No se usa para ETFs en producción. ETFs usan fetch_weekly_adjusted().
+    # TIME_SERIES_DAILY con outputsize=full requiere plan premium.
     """
     Precios de cierre diarios desde Alpha Vantage (TIME_SERIES_DAILY).
 
-    El resampleo a weekly/monthly se hace en fetcher.py en memoria, evitando
-    múltiples llamadas a la API y archivos de caché duplicados por frecuencia.
-
-    NOTA sobre ALPHAVANTAGE_DAILY_OUTPUTSIZE: con ``compact`` (default en plan
-    gratuito) solo se obtienen ~100 puntos de datos. Para historial completo se
-    necesita ``full``, que requiere clave premium. Si el .env tiene
-    ``ALPHAVANTAGE_DAILY_OUTPUTSIZE=compact``, la unificación de caché funciona
-    correctamente pero la profundidad de datos queda limitada a ~100 días.
+    Sin parámetro ``outputsize`` la API usa su comportamiento por defecto (típicamente
+    serie reciente). Para historial completo con esta función hace falta pasar
+    ``outputsize=full`` explícitamente en ``params`` (plan premium).
     """
     key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
     if not key:
@@ -94,14 +89,9 @@ def fetch(*, symbol: str, ticker: str) -> pd.Series:
             "y configúrala en el entorno o en backend/.env."
         )
 
-    out = (os.getenv("ALPHAVANTAGE_DAILY_OUTPUTSIZE") or "compact").strip().lower()
-    if out not in ("compact", "full"):
-        out = "compact"
-
     params: dict[str, str] = {
         "function": "TIME_SERIES_DAILY",
         "symbol": symbol,
-        "outputsize": out,
         "apikey": key,
     }
     block_key = "Time Series (Daily)"
@@ -128,8 +118,7 @@ def fetch_weekly_adjusted(*, symbol: str, ticker: str) -> pd.Series:
     """
     Cierre semanal ajustado (TIME_SERIES_WEEKLY_ADJUSTED).
 
-    En plan gratuito suele devolver décadas de historia en una sola petición, a
-    diferencia de TIME_SERIES_DAILY con ``outputsize=compact`` (~100 días).
+    En plan gratuito suele devolver décadas de historia en una sola petición.
     """
     key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
     if not key:

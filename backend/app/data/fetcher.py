@@ -147,7 +147,7 @@ def _resolve_asset(ticker: str) -> dict[str, Any]:
 
 
 def _download_full_series(
-    ticker: str, meta: dict[str, Any], *, dca_frequency: str
+    ticker: str, meta: dict[str, Any], *, _dca_frequency: str
 ) -> pd.Series:
     today = date.today()
     if meta["type"] == "crypto":
@@ -158,15 +158,13 @@ def _download_full_series(
             end=today,
         )
     if meta["type"] == "etf":
-        if dca_frequency in ("weekly", "monthly"):
-            return alphavantage.fetch_weekly_adjusted(symbol=ticker, ticker=ticker)
-        return alphavantage.fetch(symbol=ticker, ticker=ticker)
+        return alphavantage.fetch_weekly_adjusted(symbol=ticker, ticker=ticker)
     raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
 
 
-def _cache_filename(ticker: str, meta: dict[str, Any], dca_frequency: str) -> str:
-    """Crypto y ETF diario: ``TICKER.csv``. ETF semanal/mensual: serie larga vía weekly adjusted."""
-    if meta["type"] == "etf" and dca_frequency in ("weekly", "monthly"):
+def _cache_filename(ticker: str, meta: dict[str, Any], _dca_frequency: str) -> str:
+    """Crypto: ``TICKER.csv``. ETFs: siempre ``TIME_SERIES_WEEKLY_ADJUSTED`` → ``TICKER_wav.csv``."""
+    if meta["type"] == "etf":
         return f"{ticker}_wav.csv"
     return f"{ticker}.csv"
 
@@ -177,9 +175,8 @@ def get_prices(
     """
     Serie de cierre en el rango pedido.
 
-    Crypto: Binance (velas diarias). ETFs: Alpha Vantage — para DCA semanal o mensual
-    se usa ``TIME_SERIES_WEEKLY_ADJUSTED`` (historial largo en plan gratuito); para
-    diario, ``TIME_SERIES_DAILY`` (típicamente ``compact``). Caché CSV (Date, Close).
+    Crypto: Binance (velas diarias). ETFs: Alpha Vantage ``TIME_SERIES_WEEKLY_ADJUSTED``
+    (plan gratuito, historial largo, cierre ajustado). Caché CSV (Date, Close).
     El resampleo a buckets DCA se aplica en memoria después de leer el caché.
     """
     if start > end:
@@ -201,7 +198,7 @@ def get_prices(
             df = _read_cache_validated(cache_path)
 
         if df is None:
-            raw = _download_full_series(ticker, meta, dca_frequency=dca_frequency)
+            raw = _download_full_series(ticker, meta, _dca_frequency=dca_frequency)
             raw = raw.dropna()
             if raw.empty:
                 raise ValueError(
