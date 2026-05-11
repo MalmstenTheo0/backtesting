@@ -12,8 +12,9 @@ function cx(...parts: (string | false | undefined)[]): string {
 export const monthFieldShellClass =
   "relative h-9 w-full min-w-0 rounded-control border border-border-strong bg-surface-2 transition-colors hover:border-accent/50 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)]";
 
-export const panelClass =
-  "absolute left-0 top-full z-50 mt-1 min-w-[240px] w-max box-border rounded-control border border-border-strong bg-surface p-2 shadow-panel";
+/** Contenido del popover (posición: `fixed` vía portal en `document.body`). */
+export const pickerPanelSurfaceClass =
+  "min-w-[240px] w-max box-border rounded-control border border-border-strong bg-surface p-2 shadow-panel";
 
 export const yearScrollClass = cx(
   "drp-panel-scrollbar max-h-48 w-full min-w-[240px] overflow-y-auto",

@@ -53,6 +53,7 @@ export function ConfigPanel({
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   const [assetsError, setAssetsError] = useState<string | null>(null);
+  const [dateRangePickerOpen, setDateRangePickerOpen] = useState(false);
 
   const [ticker, setTicker] = useState("");
   const [amount, setAmount] = useState(100);
@@ -160,7 +161,12 @@ export function ConfigPanel({
 
   return (
     <aside
-      className="sticky top-[72px] flex flex-col gap-[18px] rounded-panel border border-border bg-surface p-5 shadow-panel"
+      className={[
+        "sticky top-[72px] flex flex-col gap-[18px] rounded-panel border border-border bg-surface p-5 shadow-panel",
+        dateRangePickerOpen ? "overflow-visible" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label="Configuración"
     >
       <div className="border-b border-border pb-3.5 text-[11px] font-medium uppercase tracking-[0.07em] text-section-title">
@@ -246,6 +252,7 @@ export function ConfigPanel({
           endDate={endDate}
           disabled={loading}
           onChange={handleDatesChange}
+          onPickerOpenChange={setDateRangePickerOpen}
         />
 
         <div className="flex flex-col gap-1.5">

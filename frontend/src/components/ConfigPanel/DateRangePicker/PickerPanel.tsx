@@ -5,7 +5,7 @@ import {
   cellIdleClass,
   monthStepBackButtonClass,
   monthStepHeaderClass,
-  panelClass,
+  pickerPanelSurfaceClass,
   pickMonthCellClass,
   pickMonthGridClass,
   pickYearCellClass,
@@ -49,7 +49,7 @@ export function PickerPanel({
     field === "start" ? "Elegir mes de inicio" : "Elegir mes de fin";
 
   return (
-    <div id={panelId} role="dialog" aria-label={ariaLabel} className={panelClass}>
+    <div id={panelId} role="dialog" aria-label={ariaLabel} className={pickerPanelSurfaceClass}>
       {step === "year" ? (
         <div className={yearScrollClass}>
           <div className={pickYearGridClass}>

@@ -18,17 +18,27 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
     desdePanelId,
     hastaPanelId,
     pickerRootRef,
+    startFieldShellRef,
+    endFieldShellRef,
     matchedYears,
     applyPreset,
     startDisplay,
     endDisplay,
     toggleField,
     open,
-    renderPicker,
+    pickerPortal,
   } = useDateRangePicker(props);
 
   return (
-    <div className="relative flex flex-col gap-2" data-phase2-min={minDate ?? ""}>
+    <div
+      className={[
+        "relative flex flex-col gap-2",
+        open !== null ? "overflow-visible" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-phase2-min={minDate ?? ""}
+    >
       <span className="text-xs font-medium text-text-secondary" id={labelId}>
         Período
       </span>
@@ -63,6 +73,7 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
             Desde
           </label>
           <div
+            ref={startFieldShellRef}
             className={[monthFieldShellClass, disabled ? "cursor-not-allowed opacity-50" : ""]
               .filter(Boolean)
               .join(" ")}
@@ -88,7 +99,6 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
             >
               {startDisplay || "—"}
             </button>
-            {renderPicker("start")}
           </div>
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
@@ -96,6 +106,7 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
             Hasta
           </label>
           <div
+            ref={endFieldShellRef}
             className={[monthFieldShellClass, disabled ? "cursor-not-allowed opacity-50" : ""]
               .filter(Boolean)
               .join(" ")}
@@ -121,10 +132,11 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
             >
               {endDisplay || "—"}
             </button>
-            {renderPicker("end")}
           </div>
         </div>
       </div>
+
+      {pickerPortal}
     </div>
   );
 }

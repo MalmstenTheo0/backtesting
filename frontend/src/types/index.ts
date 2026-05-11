@@ -10,6 +10,8 @@ export interface DateRangePickerProps {
   /** Fase 2: límite superior; por defecto hoy (YYYY-MM-DD). */
   maxDate?: string;
   disabled?: boolean;
+  /** Notifica si el panel flotante (año/mes) está abierto; útil para `overflow`/`z-index` en ancestros. */
+  onPickerOpenChange?: (open: boolean) => void;
 }
 
 export type AssetType = "crypto" | "etf" | "stock";

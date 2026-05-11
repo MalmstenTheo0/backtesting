@@ -2,11 +2,13 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type { ReactNode, RefObject } from "react";
+import { createPortal } from "react-dom";
 import { formatMonthYearThreeLetters, toMonthEndIso, toMonthStartIso } from "../../../lib/format";
 import type { DateRangePickerProps, DateRangePresetYears } from "../../../types";
 import { PickerPanel } from "./PickerPanel";
@@ -31,6 +33,7 @@ export function useDateRangePicker({
   minDate,
   maxDate,
   disabled,
+  onPickerOpenChange,
 }: DateRangePickerProps): {
   minDate: string | undefined;
   disabled: boolean | undefined;
@@ -39,14 +42,16 @@ export function useDateRangePicker({
   hastaId: string;
   desdePanelId: string;
   hastaPanelId: string;
-  pickerRootRef: RefObject<HTMLDivElement>;
+  pickerRootRef: RefObject<HTMLDivElement | null>;
   matchedYears: DateRangePresetYears | null;
   applyPreset: (years: DateRangePresetYears) => void;
   startDisplay: string;
   endDisplay: string;
   toggleField: (field: OpenField) => void;
   open: OpenField | null;
-  renderPicker: (field: OpenField) => ReactNode;
+  startFieldShellRef: RefObject<HTMLDivElement | null>;
+  endFieldShellRef: RefObject<HTMLDivElement | null>;
+  pickerPortal: ReactNode;
 } {
   const trimmedMax = maxDate?.trim() ?? "";
   const hasExplicitMaxDate = trimmedMax.length > 0;
@@ -60,8 +65,14 @@ export function useDateRangePicker({
   const hastaPanelId = `${labelId}-hasta-panel`;
 
   const pickerRootRef = useRef<HTMLDivElement>(null);
+  const startFieldShellRef = useRef<HTMLDivElement>(null);
+  const endFieldShellRef = useRef<HTMLDivElement>(null);
+  const pickerPortalRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState<OpenField | null>(null);
+  const [floatPos, setFloatPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const [step, setStep] = useState<PanelStep>("year");
   const [pickerYear, setPickerYear] = useState<number | null>(null);
 
@@ -171,7 +182,52 @@ export function useDateRangePicker({
     setOpen(null);
     setStep("year");
     setPickerYear(null);
+    setFloatPos(null);
   }, []);
+
+  const syncFloatPosition = useCallback(() => {
+    if (!open) {
+      return;
+    }
+    const anchor =
+      open === "start" ? startFieldShellRef.current : endFieldShellRef.current;
+    if (!anchor) {
+      return;
+    }
+    const r = anchor.getBoundingClientRect();
+    const margin = 4;
+    const minW = 240;
+    let left = r.left;
+    if (left + minW > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - minW - 8);
+    }
+    setFloatPos({ top: r.bottom + margin, left });
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setFloatPos(null);
+      return;
+    }
+    syncFloatPosition();
+  }, [open, step, pickerYear, yearRangeForField, syncFloatPosition]);
+
+  useEffect(() => {
+    onPickerOpenChange?.(open !== null);
+  }, [open, onPickerOpenChange]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    syncFloatPosition();
+    window.addEventListener("scroll", syncFloatPosition, true);
+    window.addEventListener("resize", syncFloatPosition);
+    return () => {
+      window.removeEventListener("scroll", syncFloatPosition, true);
+      window.removeEventListener("resize", syncFloatPosition);
+    };
+  }, [open, syncFloatPosition]);
 
   useEffect(() => {
     if (!open) {
@@ -179,7 +235,12 @@ export function useDateRangePicker({
     }
     const onPointerDown = (e: PointerEvent) => {
       const root = pickerRootRef.current;
-      if (!root || !(e.target instanceof Node) || root.contains(e.target)) {
+      const portal = pickerPortalRef.current;
+      const t = e.target;
+      if (!(t instanceof Node)) {
+        return;
+      }
+      if (root?.contains(t) || portal?.contains(t)) {
         return;
       }
       closePanel();
@@ -285,45 +346,58 @@ export function useDateRangePicker({
     ],
   );
 
-  const renderPicker = useCallback(
-    (field: OpenField) => {
-      if (open !== field) {
-        return null;
-      }
-      const selectedValueYear =
-        field === "start" ? startYm?.y ?? null : endYm?.y ?? null;
-      return (
-        <PickerPanel
-          field={field}
-          panelId={field === "start" ? desdePanelId : hastaPanelId}
-          step={step}
-          pickerYear={pickerYear}
-          yearRange={yearRangeForField}
-          selectedValueYear={selectedValueYear}
-          startYm={startYm}
-          endYm={endYm}
-          onPickYear={onPickYear}
-          onBackToYearStep={onBackToYearStep}
-          isMonthDisabled={isMonthDisabled}
-          onPickMonth={onPickMonth}
-        />
-      );
-    },
-    [
-      open,
-      desdePanelId,
-      hastaPanelId,
-      step,
-      pickerYear,
-      yearRangeForField,
-      startYm,
-      endYm,
-      onPickYear,
-      onBackToYearStep,
-      isMonthDisabled,
-      onPickMonth,
-    ],
-  );
+  const pickerPortal = useMemo(() => {
+    if (!open || floatPos === null || typeof document === "undefined") {
+      return null;
+    }
+    const field = open;
+    const selectedValueYear =
+      field === "start" ? startYm?.y ?? null : endYm?.y ?? null;
+    const panel = (
+      <PickerPanel
+        field={field}
+        panelId={field === "start" ? desdePanelId : hastaPanelId}
+        step={step}
+        pickerYear={pickerYear}
+        yearRange={yearRangeForField}
+        selectedValueYear={selectedValueYear}
+        startYm={startYm}
+        endYm={endYm}
+        onPickYear={onPickYear}
+        onBackToYearStep={onBackToYearStep}
+        isMonthDisabled={isMonthDisabled}
+        onPickMonth={onPickMonth}
+      />
+    );
+    return createPortal(
+      <div
+        ref={pickerPortalRef}
+        className="pointer-events-auto z-[9999] min-w-0"
+        style={{
+          position: "fixed",
+          top: floatPos.top,
+          left: floatPos.left,
+        }}
+      >
+        {panel}
+      </div>,
+      document.body,
+    );
+  }, [
+    open,
+    floatPos,
+    desdePanelId,
+    hastaPanelId,
+    step,
+    pickerYear,
+    yearRangeForField,
+    startYm,
+    endYm,
+    onPickYear,
+    onBackToYearStep,
+    isMonthDisabled,
+    onPickMonth,
+  ]);
 
   return {
     minDate,
@@ -334,12 +408,14 @@ export function useDateRangePicker({
     desdePanelId,
     hastaPanelId,
     pickerRootRef,
+    startFieldShellRef,
+    endFieldShellRef,
     matchedYears,
     applyPreset,
     startDisplay,
     endDisplay,
     toggleField,
     open,
-    renderPicker,
+    pickerPortal,
   };
 }
