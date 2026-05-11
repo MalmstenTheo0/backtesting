@@ -75,7 +75,7 @@ const PRESETS: { label: string; years: DateRangePresetYears }[] = [
 const monthFieldShellClass =
   "relative h-9 w-full rounded-control border border-border-strong bg-surface-2 transition-colors hover:border-accent/50 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)]";
 const monthFieldDisplayClass =
-  "pointer-events-none relative z-[1] flex h-9 w-full items-center px-2.5 font-sans text-[13px] font-normal leading-normal text-text-primary";
+  "pointer-events-none relative z-[1] flex h-9 w-full items-center px-2.5 text-[13px] font-normal leading-normal text-text-primary";
 
 /** Input casi invisible: `sr-only` suele hacer que `showPicker()` falle en Chromium. */
 const monthFieldNativeHiddenClass =
@@ -207,7 +207,7 @@ export default function DateRangePicker({
                 applyPreset(p.years);
               }}
               className={[
-                "rounded-control border py-1.5 text-center font-sans text-[13px] font-medium leading-normal transition-colors",
+                "rounded-control border py-1.5 text-center text-[13px] font-medium leading-normal transition-colors",
                 active
                   ? "border-accent bg-accent-muted text-accent"
                   : "border-border-strong bg-surface-2 text-text-secondary hover:border-accent/50",

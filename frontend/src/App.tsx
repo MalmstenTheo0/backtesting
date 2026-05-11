@@ -37,10 +37,10 @@ export default function App(): JSX.Element {
   return (
     <div className="min-h-screen bg-bg text-text-primary">
       <header className="sticky top-0 z-10 flex h-[52px] items-center gap-3 border-b border-border bg-surface px-8 transition-colors">
-        <span className="font-sans text-[15px] font-semibold tracking-tight">
+        <span className="text-[15px] font-semibold tracking-tight">
           DCA Backtester
         </span>
-        <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5 font-sans text-[10px] font-medium uppercase tracking-wider text-text-muted">
+        <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
           MVP v0.1
         </span>
         <div className="flex-1" />

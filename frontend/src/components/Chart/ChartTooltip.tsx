@@ -49,12 +49,12 @@ export function ChartTooltip({
       }}
     >
       <div
-        className="mb-1 font-sans text-[11px]"
+        className="mb-1 text-[11px]"
         style={{ color: "var(--tooltip-title)" }}
       >
         {dateLabel}
       </div>
-      <ul className="flex flex-col gap-1 font-mono text-xs">
+      <ul className="flex flex-col gap-1 text-xs">
         {rows.map((p) => (
           <li key={String(p.dataKey)} className="flex gap-2">
             <span style={{ color: "var(--tooltip-title)" }}>

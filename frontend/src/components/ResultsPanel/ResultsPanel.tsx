@@ -112,24 +112,24 @@ export function ResultsPanel({ data }: ResultsPanelProps): JSX.Element {
               ) : (
                 buys.map((row) => (
                   <tr key={row.date}>
-                    <td className="border-b border-border py-2 pr-3 font-sans font-medium text-text-primary">
+                    <td className="border-b border-border py-2 pr-3 font-medium text-text-primary">
                       {row.date}
                     </td>
-                    <td className="border-b border-border py-2 pr-3 font-mono text-text-secondary">
+                    <td className="border-b border-border py-2 pr-3 text-text-secondary">
                       {formatMoney(row.price, true)}
                     </td>
-                    <td className="border-b border-border py-2 pr-3 font-mono font-medium text-text-primary">
+                    <td className="border-b border-border py-2 pr-3 font-medium text-text-primary">
                       {formatMoney(row.amount, true)}
                     </td>
-                    <td className="border-b border-border py-2 pr-3 font-mono text-text-secondary">
+                    <td className="border-b border-border py-2 pr-3 text-text-secondary">
                       {formatMoney(row.commission, true)}
                     </td>
-                    <td className="border-b border-border py-2 pr-3 font-mono text-text-secondary">
+                    <td className="border-b border-border py-2 pr-3 text-text-secondary">
                       {row.units.toLocaleString("es-AR", {
                         maximumFractionDigits: 8,
                       })}
                     </td>
-                    <td className="border-b border-border py-2 text-right font-mono font-medium text-positive">
+                    <td className="border-b border-border py-2 text-right font-medium text-positive">
                       {formatMoney(row.portfolioValue, true)}
                     </td>
                   </tr>

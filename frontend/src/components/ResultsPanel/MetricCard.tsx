@@ -18,14 +18,14 @@ export function MetricCard({
       </div>
       <div
         className={[
-          "font-mono text-2xl font-medium leading-none tracking-tight",
+          "text-2xl font-medium leading-none tracking-tight",
           positive ? "text-positive" : "text-text-primary",
         ].join(" ")}
       >
         {value}
       </div>
       {sub ? (
-        <div className="mt-1.5 font-mono text-xs text-text-muted">{sub}</div>
+        <div className="mt-1.5 text-xs text-text-muted">{sub}</div>
       ) : null}
     </div>
   );

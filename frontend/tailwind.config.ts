@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Syne"', "system-ui", "sans-serif"],
+        sans: ['"DM Mono"', "ui-monospace", "monospace"],
         mono: ['"DM Mono"', "ui-monospace", "monospace"],
       },
       borderRadius: {

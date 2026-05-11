@@ -122,7 +122,7 @@ function Row({
       <span className="text-text-secondary">{k}</span>
       <span
         className={[
-          "font-mono font-medium",
+          "font-medium",
           green ? "text-positive" : "text-text-primary",
         ].join(" ")}
       >

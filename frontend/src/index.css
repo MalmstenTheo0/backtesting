@@ -57,7 +57,7 @@
 
   body {
     @apply min-h-screen antialiased;
-    font-family: "Syne", system-ui, sans-serif;
+    font-family: "DM Mono", ui-monospace, monospace;
     background: var(--bg);
     color: var(--text-primary);
     font-size: 14px;

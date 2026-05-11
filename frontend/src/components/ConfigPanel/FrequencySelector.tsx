@@ -34,7 +34,7 @@ export function FrequencySelector({
               onChange(opt.value);
             }}
             className={[
-              "border-r border-border-strong py-2 px-1 text-center font-sans text-xs font-medium transition-colors last:border-r-0",
+              "border-r border-border-strong py-2 px-1 text-center text-xs font-medium transition-colors last:border-r-0",
               active
                 ? "bg-accent text-white"
                 : "bg-surface-2 text-text-secondary hover:bg-surface",
