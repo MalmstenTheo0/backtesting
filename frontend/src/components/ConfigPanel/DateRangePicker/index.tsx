@@ -8,6 +8,9 @@ import {
 import { PRESETS } from "./utils";
 import { useDateRangePicker } from "./useDateRangePicker";
 
+const PRESET_INSUFFICIENT_DATA_MSG =
+  "No hay datos suficientes para este activo";
+
 export default function DateRangePicker(props: DateRangePickerProps): JSX.Element {
   const {
     minDate,
@@ -22,6 +25,7 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
     endFieldShellRef,
     matchedYears,
     applyPreset,
+    isPresetDisabledByMinDate,
     startDisplay,
     endDisplay,
     toggleField,
@@ -46,19 +50,32 @@ export default function DateRangePicker(props: DateRangePickerProps): JSX.Elemen
       <div className={presetGridClass}>
         {PRESETS.map((p) => {
           const active = matchedYears === p.years;
+          const insufficientData = !disabled && isPresetDisabledByMinDate(p.years);
+          const presetDisabled = Boolean(disabled || insufficientData);
           return (
             <button
               key={p.years}
               type="button"
-              disabled={disabled}
+              disabled={presetDisabled}
+              title={insufficientData ? PRESET_INSUFFICIENT_DATA_MSG : undefined}
+              aria-label={
+                insufficientData
+                  ? `${p.label}. ${PRESET_INSUFFICIENT_DATA_MSG}`
+                  : `${p.label}. Rango predefinido.`
+              }
               onClick={() => {
+                if (presetDisabled) {
+                  return;
+                }
                 applyPreset(p.years);
               }}
               className={[
                 presetButtonBaseClass,
-                active
-                  ? "border-accent bg-accent-muted text-accent"
-                  : "border-border-strong bg-surface-2 text-text-secondary hover:border-accent/50",
+                insufficientData
+                  ? "cursor-not-allowed border-border-strong bg-surface-2 text-text-muted opacity-50"
+                  : active
+                    ? "border-accent bg-accent-muted text-accent"
+                    : "border-border-strong bg-surface-2 text-text-secondary hover:border-accent/50",
               ].join(" ")}
             >
               {p.label}

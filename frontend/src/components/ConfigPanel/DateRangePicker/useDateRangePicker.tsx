@@ -19,9 +19,14 @@ import {
   isValidIsoDateString,
   parseYearMonthPrefix,
   presetRange,
+  presetStartBeforeAssetMin,
   todayIso,
   YEAR_FALLBACK_MIN,
 } from "./utils";
+
+/** Años anteriores al primer año seleccionable mostrados deshabilitados en el paso «año» (Desde y Hasta). */
+const YEAR_PREVIEW_BEFORE_MIN = 5;
+const YEAR_GRID_FLOOR = 1980;
 
 type OpenField = "start" | "end";
 type PanelStep = "year" | "month";
@@ -45,6 +50,7 @@ export function useDateRangePicker({
   pickerRootRef: RefObject<HTMLDivElement | null>;
   matchedYears: DateRangePresetYears | null;
   applyPreset: (years: DateRangePresetYears) => void;
+  isPresetDisabledByMinDate: (years: DateRangePresetYears) => boolean;
   startDisplay: string;
   endDisplay: string;
   toggleField: (field: OpenField) => void;
@@ -105,17 +111,32 @@ export function useDateRangePicker({
 
   const yearRangeForField = useMemo(() => {
     if (open === "start") {
-      const minY = globalMinYear;
+      const minY =
+        minYm !== null
+          ? Math.min(
+              minYm.y,
+              Math.max(YEAR_GRID_FLOOR, minYm.y - YEAR_PREVIEW_BEFORE_MIN),
+            )
+          : globalMinYear;
       const maxY = endYm ? Math.min(globalMaxYear, endYm.y) : globalMaxYear;
       return buildYearRange(minY, maxY);
     }
     if (open === "end") {
-      const minY = startYm ? Math.max(globalMinYear, startYm.y) : globalMinYear;
+      const firstSelectableY = startYm
+        ? Math.max(globalMinYear, startYm.y)
+        : globalMinYear;
+      const minY =
+        minYm !== null || startYm !== null
+          ? Math.min(
+              firstSelectableY,
+              Math.max(YEAR_GRID_FLOOR, firstSelectableY - YEAR_PREVIEW_BEFORE_MIN),
+            )
+          : globalMinYear;
       const maxY = Math.max(globalMaxYear, endYm?.y ?? globalMinYear);
       return buildYearRange(minY, maxY);
     }
     return [];
-  }, [open, globalMinYear, globalMaxYear, startYm, endYm]);
+  }, [open, globalMinYear, globalMaxYear, startYm, endYm, minYm]);
 
   const matchedYears = useMemo(() => {
     for (const p of PRESETS) {
@@ -133,6 +154,36 @@ export function useDateRangePicker({
     },
     [onChange, capIso],
   );
+
+  const isPresetDisabledByMinDate = useCallback(
+    (years: DateRangePresetYears) => presetStartBeforeAssetMin(capIso, years, minDate),
+    [capIso, minDate],
+  );
+
+  useEffect(() => {
+    const trimmed = minDate?.trim() ?? "";
+    if (!trimmed || !isValidIsoDateString(trimmed)) {
+      return;
+    }
+    const minMonth = toMonthStartIso(trimmed);
+    if (!isValidIsoDateString(startDate)) {
+      return;
+    }
+    let nextStart = startDate;
+    let nextEnd = endDate;
+    let changed = false;
+    if (nextStart < minMonth) {
+      nextStart = minMonth;
+      changed = true;
+    }
+    if (isValidIsoDateString(nextEnd) && nextEnd < nextStart) {
+      nextEnd = toMonthEndIso(nextStart);
+      changed = true;
+    }
+    if (changed) {
+      onChange(nextStart, nextEnd);
+    }
+  }, [minDate, startDate, endDate, onChange]);
 
   const onStartMonthChange = useCallback(
     (raw: string) => {
@@ -278,6 +329,19 @@ export function useDateRangePicker({
     [disabled],
   );
 
+  const isYearDisabled = useCallback(
+    (y: number) => {
+      if (minYm !== null && y < minYm.y) {
+        return true;
+      }
+      if (open === "end" && startYm !== null && y < startYm.y) {
+        return true;
+      }
+      return false;
+    },
+    [minYm, startYm, open],
+  );
+
   const isMonthDisabled = useCallback(
     (month1: number): boolean => {
       if (!open || !pickerYear) {
@@ -365,6 +429,7 @@ export function useDateRangePicker({
         endYm={endYm}
         onPickYear={onPickYear}
         onBackToYearStep={onBackToYearStep}
+        isYearDisabled={isYearDisabled}
         isMonthDisabled={isMonthDisabled}
         onPickMonth={onPickMonth}
       />
@@ -395,6 +460,7 @@ export function useDateRangePicker({
     endYm,
     onPickYear,
     onBackToYearStep,
+    isYearDisabled,
     isMonthDisabled,
     onPickMonth,
   ]);
@@ -412,6 +478,7 @@ export function useDateRangePicker({
     endFieldShellRef,
     matchedYears,
     applyPreset,
+    isPresetDisabledByMinDate,
     startDisplay,
     endDisplay,
     toggleField,

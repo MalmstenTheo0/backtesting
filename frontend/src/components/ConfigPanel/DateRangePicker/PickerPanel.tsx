@@ -27,6 +27,7 @@ export interface PickerPanelProps {
   endYm: { y: number; m: number } | null;
   onPickYear: (y: number) => void;
   onBackToYearStep: () => void;
+  isYearDisabled: (year: number) => boolean;
   isMonthDisabled: (month1: number) => boolean;
   onPickMonth: (month1: number) => void;
 }
@@ -42,6 +43,7 @@ export function PickerPanel({
   endYm,
   onPickYear,
   onBackToYearStep,
+  isYearDisabled,
   isMonthDisabled,
   onPickMonth,
 }: PickerPanelProps): JSX.Element {
@@ -55,16 +57,24 @@ export function PickerPanel({
           <div className={pickYearGridClass}>
             {yearRange.map((y) => {
               const active = selectedValueYear === y;
+              const yearOff = isYearDisabled(y);
               return (
                 <button
                   key={y}
                   type="button"
+                  disabled={yearOff}
                   className={[
                     pickYearCellClass,
-                    active ? cellActiveClass : cellIdleClass,
+                    yearOff
+                      ? cellDisabledClass
+                      : active
+                        ? cellActiveClass
+                        : cellIdleClass,
                   ].join(" ")}
                   onClick={() => {
-                    onPickYear(y);
+                    if (!yearOff) {
+                      onPickYear(y);
+                    }
                   }}
                 >
                   {y}

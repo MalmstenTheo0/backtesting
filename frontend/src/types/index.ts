@@ -25,6 +25,8 @@ export interface AssetItem {
   name: string;
   type: AssetType;
   data_since: string;
+  /** Fecha mínima de datos históricos para la UI (YYYY-MM-DD); opcional, viene de constantes curadas por ticker. */
+  dataFrom?: string;
 }
 
 export interface AssetsResponse {

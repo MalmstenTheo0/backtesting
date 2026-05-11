@@ -7,18 +7,18 @@ import {
 import type { DateRangePresetYears } from "../../../types";
 
 export const MONTH_ABBR_ES = [
-  "ene",
-  "feb",
-  "mar",
-  "abr",
-  "may",
-  "jun",
-  "jul",
-  "ago",
-  "sep",
-  "oct",
-  "nov",
-  "dic",
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
 ] as const;
 
 export const YEAR_FALLBACK_MIN = 1900;
@@ -74,6 +74,20 @@ export function presetRange(
   const endTrunc = toMonthEndIso(toIsoDateLocal(end));
   const startTrunc = toMonthStartIso(toIsoDateLocal(rawStart));
   return { start: startTrunc, end: endTrunc };
+}
+
+/** Indica si el inicio del preset cae antes del primer mes permitido por `minDate`. */
+export function presetStartBeforeAssetMin(
+  capIso: string,
+  years: DateRangePresetYears,
+  minDate: string | undefined,
+): boolean {
+  if (!minDate || !isValidIsoDateString(minDate)) {
+    return false;
+  }
+  const minMonthStart = toMonthStartIso(minDate);
+  const { start } = presetRange(capIso, years);
+  return start < minMonthStart;
 }
 
 export function datesMatchPreset(

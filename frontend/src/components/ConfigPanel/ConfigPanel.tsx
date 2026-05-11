@@ -12,6 +12,7 @@ import {
   toMonthEndIso,
   toMonthStartIso,
 } from "../../lib/format";
+import { ASSET_DATA_FROM_BY_TICKER } from "../../constants/assets";
 import type { AssetItem, BacktestRequest, Frequency } from "../../types";
 import { getAssets } from "../../services/api";
 import { AssetSelector } from "./AssetSelector";
@@ -76,7 +77,12 @@ export function ConfigPanel({
         if (cancelled) {
           return;
         }
-        setAssets(res.assets);
+        setAssets(
+          res.assets.map((a) => {
+            const dataFrom = ASSET_DATA_FROM_BY_TICKER[a.ticker];
+            return dataFrom !== undefined ? { ...a, dataFrom } : a;
+          }),
+        );
         setTicker((prev) => {
           if (prev) {
             return prev;
@@ -102,6 +108,13 @@ export function ConfigPanel({
     () => assets.find((a) => a.ticker === ticker),
     [assets, ticker],
   );
+
+  const minDate = useMemo(() => {
+    if (!selectedAsset) {
+      return undefined;
+    }
+    return selectedAsset.dataFrom ?? selectedAsset.data_since;
+  }, [selectedAsset]);
 
   useEffect(() => {
     if (selectedAsset?.type === "etf" && frequency === "daily") {
@@ -250,6 +263,7 @@ export function ConfigPanel({
         <DateRangePicker
           startDate={startDate}
           endDate={endDate}
+          minDate={minDate}
           disabled={loading}
           onChange={handleDatesChange}
           onPickerOpenChange={setDateRangePickerOpen}
