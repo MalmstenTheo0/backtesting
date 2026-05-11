@@ -72,6 +72,22 @@
   .bg-accent-muted {
     background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
+
+  /* Scroll del panel de años del DateRangePicker (clase referenciada en styles.ts). */
+  .drp-panel-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .drp-panel-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .drp-panel-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .drp-panel-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: 4px;
+  }
 }
 
 @layer utilities {

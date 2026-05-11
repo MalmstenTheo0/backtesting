@@ -15,16 +15,11 @@ import {
 import type { AssetItem, BacktestRequest, Frequency } from "../../types";
 import { getAssets } from "../../services/api";
 import { AssetSelector } from "./AssetSelector";
+import {
+  ETF_DAILY_DISABLED_TITLE,
+  FREQUENCY_OPTIONS,
+} from "./configPanelConstants";
 import DateRangePicker from "./DateRangePicker";
-
-const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
-  { value: "daily", label: "Diaria" },
-  { value: "weekly", label: "Semanal" },
-  { value: "monthly", label: "Mensual" },
-];
-
-const ETF_DAILY_DISABLED_TITLE =
-  "No disponible para ETFs en plan gratuito";
 
 function defaultDateRange(): { start: string; end: string } {
   const today = new Date();
