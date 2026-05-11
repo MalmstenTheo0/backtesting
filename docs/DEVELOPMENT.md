@@ -7,6 +7,27 @@
 - npm 10+
 - Git
 
+Para levantar todo con Docker: [Docker Engine](https://docs.docker.com/engine/install/) o **Docker Desktop** (Windows/macOS). En Windows, si el hot-reload con volúmenes montados va lento, conviene usar WSL2 como backend de Docker.
+
+---
+
+## Docker (desarrollo)
+
+Desde la raíz del repositorio, con backend y frontend en un solo comando (hot-reload activado):
+
+```bash
+docker compose up --build
+```
+
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:8000` (Swagger: `/docs`)
+
+**Variables de entorno:** opcionalmente copiá `backend/.env.example` a `backend/.env` antes de arrancar (misma convención que sin Docker). Si no existe `.env`, Compose igual arranca; para ETFs hace falta `ALPHAVANTAGE_API_KEY` en `.env`.
+
+**Red y CORS:** el navegador llama al API en `http://localhost:8000` (no uses el hostname interno `backend` en `VITE_API_URL`). En `docker-compose.yml` ya está `VITE_API_URL=http://localhost:8000` y `ALLOWED_ORIGINS=http://localhost:5173`.
+
+**Frontend `node_modules`:** se usa un volumen nombrado para no pisar los módulos del contenedor al montar `./frontend`. Si cambiás dependencias en `package.json`, reconstruí la imagen del frontend: `docker compose build frontend` (o `up --build`).
+
 ---
 
 ## Setup inicial (primera vez)

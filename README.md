@@ -11,3 +11,5 @@ cd backend && python -m venv venv && .\venv\Scripts\activate && pip install -r r
 ```bash
 cd frontend && npm install && npm run dev
 ```
+
+Con **Docker** (back + front juntos): en la raíz del repo, `docker compose up --build`. Requisitos y detalles en [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#docker-desarrollo).
