@@ -1,3 +1,17 @@
+/** Años atrás desde `maxDate` para presets del selector de rango. */
+export type DateRangePresetYears = 1 | 3 | 5 | 10;
+
+export interface DateRangePickerProps {
+  startDate: string;
+  endDate: string;
+  onChange: (start: string, end: string) => void;
+  /** Fase 2: límite inferior permitido (YYYY-MM-DD). */
+  minDate?: string;
+  /** Fase 2: límite superior; por defecto hoy (YYYY-MM-DD). */
+  maxDate?: string;
+  disabled?: boolean;
+}
+
 export type AssetType = "crypto" | "etf" | "stock";
 
 export type Frequency = "daily" | "weekly" | "monthly";

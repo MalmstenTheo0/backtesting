@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
+import { toMonthEndIso, toMonthStartIso } from "../lib/format";
 import type { BacktestRequest, BacktestResponse } from "../types";
 import { runBacktest } from "../services/api";
 
@@ -23,7 +24,12 @@ export function useBacktest(): UseBacktestState & {
     setLoading(true);
     setError(null);
     try {
-      const result = await runBacktest(params);
+      const payload: BacktestRequest = {
+        ...params,
+        start_date: toMonthStartIso(params.start_date),
+        end_date: toMonthEndIso(params.end_date),
+      };
+      const result = await runBacktest(payload);
       if (seq !== requestSeq.current) {
         return;
       }

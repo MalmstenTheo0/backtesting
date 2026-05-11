@@ -6,11 +6,16 @@ import {
   useState,
 } from "react";
 
-import { addYearsLocal, toIsoDateLocal } from "../../lib/format";
+import {
+  addYearsLocal,
+  toIsoDateLocal,
+  toMonthEndIso,
+  toMonthStartIso,
+} from "../../lib/format";
 import type { AssetItem, BacktestRequest, Frequency } from "../../types";
 import { getAssets } from "../../services/api";
 import { AssetSelector } from "./AssetSelector";
-import { DateRangePicker } from "./DateRangePicker";
+import DateRangePicker from "./DateRangePicker";
 
 const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
   { value: "daily", label: "Diaria" },
@@ -22,9 +27,10 @@ const ETF_DAILY_DISABLED_TITLE =
   "No disponible para ETFs en plan gratuito";
 
 function defaultDateRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = addYearsLocal(end, 5);
-  return { start: toIsoDateLocal(start), end: toIsoDateLocal(end) };
+  const today = new Date();
+  const end = toMonthEndIso(toIsoDateLocal(today));
+  const start = toMonthStartIso(toIsoDateLocal(addYearsLocal(today, 5)));
+  return { start, end };
 }
 
 function pickDefaultTicker(assets: AssetItem[]): string {
