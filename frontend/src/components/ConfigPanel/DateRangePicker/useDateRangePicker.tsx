@@ -47,7 +47,7 @@ export function useDateRangePicker({
   hastaId: string;
   desdePanelId: string;
   hastaPanelId: string;
-  pickerRootRef: RefObject<HTMLDivElement | null>;
+  pickerRootRef: RefObject<HTMLDivElement>;
   matchedYears: DateRangePresetYears | null;
   applyPreset: (years: DateRangePresetYears) => void;
   isPresetDisabledByMinDate: (years: DateRangePresetYears) => boolean;
@@ -55,8 +55,8 @@ export function useDateRangePicker({
   endDisplay: string;
   toggleField: (field: OpenField) => void;
   open: OpenField | null;
-  startFieldShellRef: RefObject<HTMLDivElement | null>;
-  endFieldShellRef: RefObject<HTMLDivElement | null>;
+  startFieldShellRef: RefObject<HTMLDivElement>;
+  endFieldShellRef: RefObject<HTMLDivElement>;
   pickerPortal: ReactNode;
 } {
   const trimmedMax = maxDate?.trim() ?? "";
