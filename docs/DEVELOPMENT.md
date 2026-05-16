@@ -157,7 +157,9 @@ Las principales (en `package.json`):
     "recharts": "^2.13.0"
   },
   "devDependencies": {
+    "@types/node": "^20.19.40",
     "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
@@ -172,25 +174,33 @@ Las principales (en `package.json`):
 
 ## Estructura de caché
 
-Los datos de precios se guardan en `backend/app/data/cache/` como CSVs:
+Los datos de precios se guardan bajo `backend/app/data/cache/` (ruta configurable con `CACHE_DIR` en `.env`). El directorio está en `.gitignore`.
+
+**Cripto:** un CSV por ticker, nombre `{TICKER}.csv` (ej. `BTC-USD.csv`).
+
+**ETFs:** un CSV por ticker con sufijo `_wav` (de *weekly adjusted*), nombre `{TICKER}_wav.csv` (ej. `SPY_wav.csv`). La descarga usa Alpha Vantage `TIME_SERIES_WEEKLY_ADJUSTED`; el backtest **semanal** o **mensual** remuestrea esa serie en memoria (`get_prices` en `fetcher.py`).
+
+Ejemplo de layout:
 
 ```
 cache/
 ├── BTC-USD.csv
 ├── ETH-USD.csv
-├── SPY.csv
-└── AAPL.csv
+├── SOL-USD.csv
+├── SPY_wav.csv
+├── QQQ_wav.csv
+└── VTI_wav.csv
 ```
 
-Cada archivo tiene el formato:
+Cada archivo cacheado tiene solo dos columnas:
 
 ```csv
-Date,Open,High,Low,Close,Volume
-2020-01-01,7200.17,7254.33,7100.00,7200.17,28477823
+Date,Close
+2020-01-01,7200.17
 ...
 ```
 
-El directorio `cache/` está en `.gitignore` — los datos no se versiona, se descargan en runtime.
+Además de `CACHE_MAX_AGE_HOURS`, el fetcher puede forzar refresco si el último `Date` del CSV está demasiado desactualizado respecto a hoy (**1 día** para cripto, **7 días** para ETF).
 
 ---
 
@@ -253,7 +263,7 @@ npm run preview
 # Type checking
 npx tsc --noEmit
 
-# Lint
+# Lint (en este repo equivale a typecheck sin emitir JS)
 npm run lint
 ```
 
@@ -263,9 +273,13 @@ npm run lint
 
 ### Alpha Vantage devuelve error de límite para ETFs
 
-El plan gratuito permite 25 requests/día. Con el caché CSV esto raramente es un problema — cada ticker se descarga una sola vez por día. Si limpiaste el caché y pedís varios ETFs seguidos, esperá hasta el día siguiente o conseguí una key premium.
+El plan gratuito tiene límites de peticiones (p. ej. por minuto y por día). Con el caché CSV y un solo endpoint por ETF (`TIME_SERIES_WEEKLY_ADJUSTED`) suele alcanzar para desarrollo. Si ves el mensaje de *rate limit*, esperá unos minutos o revisá la cuota en alphavantage.co.
 
-Los ETFs se cargan con `TIME_SERIES_WEEKLY_ADJUSTED` (historial largo en plan gratuito); el DCA diario/semanal/mensual se obtiene remuestreando esa serie en memoria después del caché.
+Los ETFs **no** usan DCA diario en esta app (el request ETF + `daily` se rechaza con **422**). Para DCA semanal o mensual, la serie semanal ajustada se remuestrea desde el CSV en memoria.
+
+### Falta `ALPHAVANTAGE_API_KEY` al pedir un ETF
+
+Configurá la variable en `backend/.env` (ver `.env.example`). Sin clave, el backend responde **422** con un mensaje que indica cómo obtener una key gratuita.
 
 ### Binance no devuelve datos para una fecha
 

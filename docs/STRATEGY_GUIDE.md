@@ -6,7 +6,9 @@ Este documento explica la arquitectura de estrategias y cómo extender el sistem
 
 ## Principio de diseño
 
-El endpoint `/api/v1/backtest` es agnóstico a la estrategia. Recibe el parámetro `strategy` (string), busca la clase correspondiente en el registry, y delega el cálculo. Agregar una nueva estrategia **no requiere modificar ningún endpoint existente**.
+El endpoint `/api/v1/backtest` es agnóstico a la estrategia. Recibe el parámetro `strategy` (string), resuelve la clase en el registry, instancia la estrategia y delega el cálculo. Agregar una nueva estrategia implementada **no requiere modificar la ruta** del endpoint.
+
+**Contrato vs registry:** el enum Pydantic `StrategyName` en `app/models/request.py` puede listar valores “reservados” antes de que exista código en `STRATEGY_REGISTRY`. Hoy `dca_weighted` y `value_averaging` están en el enum pero no en el registry → la API responde **422**. Al implementar una estrategia nueva: **(1)** clase + registro, **(2)** si el nombre es nuevo, añadirlo al enum (o quitar reservas no usadas), **(3)** documentar en `API.md` y `SPEC.md`.
 
 ---
 
@@ -119,7 +121,7 @@ class Strategy(ABC):
         cagr = ((final_value / total_capital) ** (1 / years) - 1) * 100 if years > 0 else 0
 
         return LumpSumComparison(
-            capital=total_capital,
+            capital=round(total_capital, 2),
             units_bought=round(units, 6),
             final_value=round(final_value, 2),
             return_pct=round(return_pct, 2),
@@ -128,19 +130,24 @@ class Strategy(ABC):
 
     def _get_period_dates(self, prices: pd.Series, frequency: str) -> pd.DatetimeIndex:
         """
-        Helper para obtener las fechas de compra según la frecuencia.
-        Retorna las fechas del índice de prices que corresponden a cada período.
+        Fechas de compra alineadas al índice de `prices` (días hábiles presentes en la serie).
+
+        - daily: todos los timestamps del índice.
+        - weekly: primer índice por (año ISO, semana ISO) — evita perder semanas si el lunes no cotiza.
+        - monthly: primer índice por mes calendario (`to_period("M")`) — evita perder meses si el día 1 no cotiza.
         """
         if frequency == "daily":
             return prices.index
-        elif frequency == "weekly":
-            # Primer día disponible de cada semana
-            return prices.resample("W-MON").first().dropna().index
-        elif frequency == "monthly":
-            # Primer día disponible de cada mes
-            return prices.resample("MS").first().dropna().index
-        else:
-            raise ValueError(f"Frecuencia no soportada: {frequency}")
+        if frequency == "weekly":
+            ic = prices.index.isocalendar()
+            first_per_week = prices.groupby([ic["year"], ic["week"]], sort=True).head(1)
+            return first_per_week.index
+        if frequency == "monthly":
+            first_per_month = prices.groupby(
+                prices.index.to_period("M"), sort=True
+            ).head(1)
+            return first_per_month.index
+        raise ValueError(f"Frecuencia no soportada: {frequency}")
 ```
 
 ---
@@ -281,23 +288,28 @@ class DCAWeightedStrategy(Strategy):
 ```python
 # backend/app/strategies/registry.py
 
+from app.strategies.base import Strategy
 from app.strategies.dca import DCAStrategy
 from app.strategies.dca_weighted import DCAWeightedStrategy  # agregar
 
-STRATEGY_REGISTRY = {
+STRATEGY_REGISTRY: dict[str, type[Strategy]] = {
     "dca": DCAStrategy,
     "dca_weighted": DCAWeightedStrategy,  # agregar
 }
 
-def get_strategy(name: str) -> type:
+
+def get_strategy(name: str) -> Strategy:
+    """Devuelve una instancia lista para llamar a ``run()``."""
     if name not in STRATEGY_REGISTRY:
-        raise ValueError(f"Estrategia desconocida: '{name}'. Disponibles: {list(STRATEGY_REGISTRY.keys())}")
+        raise ValueError(
+            f"Estrategia desconocida: '{name}'. Disponibles: {list(STRATEGY_REGISTRY.keys())}"
+        )
     return STRATEGY_REGISTRY[name]()
 ```
 
-### Paso 3: Actualizar el endpoint `/assets` si la estrategia tiene parámetros extra
+### Paso 3: Extender el request y la documentación
 
-Si la nueva estrategia requiere parámetros adicionales (como `ma_window`), documentarlos en `API.md` y agregar validación en el modelo Pydantic de request.
+Si la estrategia requiere parámetros adicionales (como `ma_window`), agregalos al modelo Pydantic `BacktestRequest` (o un submodelo), validá rangos, y documentá el contrato en `API.md` / `SPEC.md`.
 
 ### Paso 4: Actualizar `SPEC.md`
 

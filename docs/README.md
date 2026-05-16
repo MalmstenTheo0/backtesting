@@ -4,7 +4,7 @@ Web app para simular y analizar estrategias de inversión sobre datos histórico
 
 ## Estado del proyecto
 
-MVP en desarrollo — Estrategia inicial: DCA Tradicional.
+MVP en desarrollo — Motor de backtest: **DCA tradicional** (`strategy: "dca"`). Los valores `dca_weighted` y `value_averaging` existen en el contrato de API como **reservados** y devuelven 422 hasta que haya implementación.
 
 ## Stack
 
@@ -14,8 +14,10 @@ MVP en desarrollo — Estrategia inicial: DCA Tradicional.
 | Gráficos | Recharts |
 | Estilos | Tailwind CSS |
 | Backend | FastAPI (Python 3.12) |
-| Datos | yfinance + caché CSV local |
+| Datos | API pública Binance (cripto) + Alpha Vantage `TIME_SERIES_WEEKLY_ADJUSTED` (ETFs) + caché CSV local (`Date`, `Close`) |
 | Cálculo | pandas + numpy |
+
+La SPA incluye pestañas **Backtester** (llama al API), **Interés compuesto** y **Cartera** (cálculos locales, sin backend).
 
 ## Estructura del repositorio
 
@@ -34,7 +36,7 @@ MVP en desarrollo — Estrategia inicial: DCA Tradicional.
 
 ## Inicio rápido
 
-Ver [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) para instrucciones completas de setup.
+Ver [DEVELOPMENT.md](DEVELOPMENT.md) para instrucciones completas de setup.
 
 ```bash
 # Backend
@@ -51,15 +53,15 @@ npm run dev
 
 ## Documentación
 
-- [SPEC.md](docs/SPEC.md) — Especificación del producto: qué construimos y por qué
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Decisiones técnicas y estructura del sistema
-- [API.md](docs/API.md) — Contratos de endpoints (request/response schemas)
-- [STRATEGY_GUIDE.md](docs/STRATEGY_GUIDE.md) — Cómo agregar nuevas estrategias
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md) — Setup local, comandos, troubleshooting
+- [SPEC.md](SPEC.md) — Especificación del producto: qué construimos y por qué
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Decisiones técnicas y estructura del sistema
+- [API.md](API.md) — Contratos de endpoints (request/response schemas)
+- [STRATEGY_GUIDE.md](STRATEGY_GUIDE.md) — Cómo agregar nuevas estrategias
+- [DEVELOPMENT.md](DEVELOPMENT.md) — Setup local, comandos, troubleshooting
 
 ## Roadmap de estrategias
 
-1. ✅ **DCA Tradicional** — MVP
-2. 🔜 **DCA Ponderado** — Ajusta monto según precio relativo o señal técnica
-3. 🔜 **Value Averaging** — Invierte lo necesario para alcanzar un target de portfolio
-4. 🔜 **DCA con Indicadores** — Condicional por RSI, MA200, etc.
+1. ✅ **DCA Tradicional** — Implementado (`dca`).
+2. 🔒 **DCA Ponderado** — Reservado en API (`dca_weighted`); pendiente de implementación en el registry.
+3. 🔒 **Value Averaging** — Reservado en API (`value_averaging`); pendiente de implementación en el registry.
+4. 🔜 **DCA con Indicadores** — Condicional por RSI, MA200, etc. (sin clave en el contrato actual).

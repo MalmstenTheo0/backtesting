@@ -1,7 +1,7 @@
 # API.md — Contrato de Endpoints
 
 Base URL (desarrollo): `http://localhost:8000`  
-Base URL (producción): `https://dca-backtester-api.onrender.com`
+Base URL (producción): `https://dca-backtester-api.onrender.com` (reemplazá por la URL real de tu API si deployaste en otro dominio)
 
 Todos los endpoints devuelven `Content-Type: application/json`.
 
@@ -74,9 +74,9 @@ Devuelve la lista curada de activos soportados.
 
 Ejecuta un backtest y devuelve métricas y datos para el gráfico.
 
-Los precios de **cripto** provienen de la API pública de Binance; los de **ETFs** de Alpha Vantage (con caché local configurable en el servidor).
+Los precios de **cripto** provienen de la API pública de Binance (velas diarias). Los de **ETFs** se obtienen con Alpha Vantage **`TIME_SERIES_WEEKLY_ADJUSTED`**, se cachean en el servidor y se remuestrean según la frecuencia del DCA (`weekly` / `monthly`).
 
-> **Nota:** la frecuencia `"daily"` **no está disponible para ETFs** (`SPY`, `QQQ`, `VTI`) en el plan gratuito de datos. Para esos activos usá `"weekly"` o `"monthly"`. Las peticiones con ETF + `daily` reciben **422**.
+> **Nota:** la frecuencia `"daily"` **no está disponible para ETFs** (`SPY`, `QQQ`, `VTI`). Usá `"weekly"` o `"monthly"`. Las peticiones con ETF + `daily` reciben **422** (validación en el modelo de request).
 
 ### Request Body
 
@@ -100,16 +100,29 @@ Los precios de **cripto** provienen de la API pública de Binance; los de **ETFs
 | `start_date` | string (YYYY-MM-DD) | ✅ | Fecha de inicio del backtest |
 | `end_date` | string (YYYY-MM-DD) | ✅ | Fecha de fin del backtest |
 | `commission_pct` | float | ❌ | Comisión por operación en %. Default: 0.0 |
-| `strategy` | enum | ❌ | Estrategia a usar. Default: `"dca"`. Valores futuros: `"dca_weighted"`, `"value_averaging"` |
+| `strategy` | string (enum) | ❌ | Default: `"dca"`. Valores aceptados en el JSON: `"dca"`, `"dca_weighted"`, `"value_averaging"`. Solo **`dca`** está implementado; las otras dos claves son **reservadas** y responden **422** hasta que exista la clase en el registry (ver más abajo). |
+
+### Estrategias reservadas (`strategy`)
+
+El cuerpo del request puede incluir `dca_weighted` o `value_averaging` por compatibilidad futura, pero el motor solo registra **`dca`**. Si enviás una estrategia no registrada, la API responde **422** con `detail` en texto plano, por ejemplo:
+
+```json
+{
+  "detail": "Estrategia desconocida: 'dca_weighted'. Disponibles: ['dca']"
+}
+```
+
+(El texto exacto puede variar; las claves disponibles siempre reflejan `STRATEGY_REGISTRY`.)
 
 ### Validaciones
 
 - `start_date` debe ser anterior a `end_date`
 - El rango mínimo es 30 días
-- `ticker` debe pertenecer a la lista curada
-- `amount_per_period` debe ser > 0
+- `ticker` debe pertenecer a la lista curada (si no: **422** con mensaje `Ticker no permitido`, antes de consultar fuentes externas)
+- `amount_per_period` debe ser ≥ 1.0
 - `commission_pct` debe estar entre 0 y 100
-- ETF + `frequency: "daily"` → rechazado (422)
+- ETF + `frequency: "daily"` → **422**
+- `strategy` no implementada → **422** (ver sección anterior)
 
 ### Response 200
 
@@ -193,21 +206,45 @@ Los precios de **cripto** provienen de la API pública de Binance; los de **ETFs
 | `return_pct` | Retorno porcentual total |
 | `cagr_pct` | CAGR del lump sum |
 
-**`chart_data`** — Array de puntos para el gráfico (un punto por día del rango):
+**`chart_data`** — Un punto por **fecha** de la serie de precios usada en el backtest (la densidad depende del activo y la `frequency`: p. ej. cripto en diario tiene un punto por día hábil; ETF en mensual tiene un punto por mes tras el remuestreo).
 
 | Campo | Descripción |
 |---|---|
 | `date` | Fecha del punto (YYYY-MM-DD) |
-| `price` | Precio de cierre ajustado del activo |
-| `invested` | Capital invertido acumulado hasta ese día |
-| `portfolio_value` | Valor del portfolio DCA ese día |
-| `is_buy` | `true` si ese día se realizó una compra |
+| `price` | Precio de cierre del activo en esa fecha |
+| `invested` | Capital invertido acumulado hasta esa fecha |
+| `portfolio_value` | Valor del portfolio DCA en esa fecha |
+| `is_buy` | `true` si en esa fecha hubo compra DCA |
 
-> **Nota de performance:** `chart_data` puede tener hasta ~3650 puntos (10 años diarios). El frontend debe manejar este volumen eficientemente — Recharts lo hace sin problemas.
+> **Nota de volumen:** con DCA diario sobre muchos años, el array puede crecer (del orden de miles de puntos). El frontend debe renderizar sin bloquear el hilo principal (p. ej. Recharts).
 
 ### Response 422 — Validation Error
 
-Errores de validación del body (Pydantic), rango de fechas, rango mínimo de 30 días, ETF con frecuencia diaria, ticker no curado, u otros errores de negocio devueltos como 422.
+Errores de validación del body (Pydantic), rango de fechas, rango mínimo de 30 días, ETF con frecuencia diaria, **ticker no curado** (`Ticker no permitido`), **estrategia reservada sin implementación**, **falta `ALPHAVANTAGE_API_KEY`** al pedir un ETF, mensajes de negocio de Alpha Vantage que el servidor mapea a 422, u otros `ValueError` de validación de rango/datos.
+
+**Ejemplo — ticker no permitido (POST)**
+
+```json
+{
+  "detail": "Ticker no permitido: 'XYZ'. Debe estar en la lista curada de activos."
+}
+```
+
+**Ejemplo — estrategia reservada**
+
+```json
+{
+  "detail": "Estrategia desconocida: 'value_averaging'. Disponibles: ['dca']"
+}
+```
+
+**Ejemplo — falta clave Alpha Vantage (ETFs)**
+
+```json
+{
+  "detail": "Falta la variable de entorno ALPHAVANTAGE_API_KEY. Consigue una clave gratuita en https://www.alphavantage.co/support/#api-key y configúrala en el entorno o en backend/.env."
+}
+```
 
 **Ejemplo — orden de fechas**
 
@@ -241,13 +278,15 @@ Errores de validación del body (Pydantic), rango de fechas, rango mínimo de 30
 
 (El texto exacto de `msg` puede variar ligeramente según la versión de Pydantic; el mensaje de negocio es el indicado arriba.)
 
-### Response 404 — Recurso / ticker no encontrado en la fuente
+### Response 404 — Datos / ticker en la capa de mercado
 
-Cuando el mensaje de error indica explícitamente recurso no encontrado o ticker no soportado por la capa de datos, por ejemplo:
+Algunos `ValueError` al resolver precios se exponen como **404** cuando el mensaje indica recurso no encontrado, ticker inválido o ticker no soportado **en la capa de datos** (p. ej. respuesta de mercado o metadatos inesperados). Un ticker ajeno a la lista curada **no** cae aquí: se rechaza antes con **422**.
+
+**Ejemplo (ilustrativo; el texto depende de la fuente)**
 
 ```json
 {
-  "detail": "Ticker no soportado: 'XYZ'. Use uno de los siguientes: BTC-USD, ETH-USD, QQQ, SOL-USD, SPY, VTI."
+  "detail": "Ticker no soportado: 'FOO'. Use uno de los siguientes: BTC-USD, ETH-USD, SOL-USD, SPY, QQQ, VTI."
 }
 ```
 
@@ -274,22 +313,21 @@ Cuando el mensaje de error indica explícitamente recurso no encontrado o ticker
 ### Cliente HTTP recomendado
 
 ```typescript
-// services/api.ts
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// services/api.ts — `parseJsonError` y `formatApiError` están en el mismo archivo del repo.
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-export async function runBacktest(params: BacktestRequest): Promise<BacktestResponse> {
+export async function runBacktest(
+  params: BacktestRequest,
+): Promise<BacktestResponse> {
   const res = await fetch(`${API_BASE}/api/v1/backtest`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
-  })
-  
+  });
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.detail || 'Error running backtest')
+    throw new Error(await parseJsonError(res));
   }
-  
-  return res.json()
+  return res.json() as Promise<BacktestResponse>;
 }
 ```
 

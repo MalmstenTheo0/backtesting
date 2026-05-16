@@ -1,6 +1,6 @@
 # DCA Backtester
 
-Web app para simular estrategias DCA sobre datos históricos. Documentación en [docs/README.md](docs/README.md).
+Web app para simular estrategias DCA sobre datos históricos (Binance para cripto, Alpha Vantage para ETFs, con caché local). Incluye pestañas de **calculadora de interés compuesto** y **asignación de cartera** solo en el navegador, además del backtester. Documentación en [docs/README.md](docs/README.md).
 
 ## Inicio rápido
 

@@ -3,30 +3,31 @@
 ## Diagrama general
 
 ```
-┌─────────────────────────────────┐
-│         FRONTEND (React)        │
-│                                 │
-│  ConfigPanel → ResultsPanel     │
-│                 Chart           │
-│                                 │
-│  Puerto: 5173 (dev)             │
-└────────────────┬────────────────┘
-                 │ HTTP REST (JSON)
-                 │ POST /api/v1/backtest
-                 ▼
-┌─────────────────────────────────┐
-│        BACKEND (FastAPI)        │
-│                                 │
-│  Router → Strategy Engine       │
-│           ↓                     │
-│        Data Fetcher             │
-│           ↓                     │
-│        Cache (CSV local)        │
-│           ↓                     │
-│   Binance API / Alpha Vantage   │
-│                                 │
-│  Puerto: 8000 (dev)             │
-└─────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│              FRONTEND (React + Vite)         │
+│  Pestañas: Backtester | Interés compuesto    │
+│            | Cartera (local)                 │
+│  Backtester: ConfigPanel → ResultsPanel      │
+│               → BacktestChart                 │
+│  Tema claro/oscuro (ThemeToggle)             │
+│  Puerto: 5173 (dev)                          │
+└────────────────────┬─────────────────────────┘
+                     │ HTTP REST (JSON)
+                     │ GET /api/v1/health
+                     │ GET /api/v1/assets
+                     │ POST /api/v1/backtest
+                     ▼
+┌──────────────────────────────────────────────┐
+│           BACKEND (FastAPI)                  │
+│  /api/v1 → health, assets, backtest          │
+│           ↓                                  │
+│     Strategy registry → Strategy.run()       │
+│           ↓                                  │
+│     Data fetcher (caché + fuentes)           │
+│           ↓                                  │
+│     Binance (crypto) / Alpha Vantage (ETF)   │
+│  Puerto: 8000 (dev)                          │
+└──────────────────────────────────────────────┘
 ```
 
 ---
@@ -36,6 +37,7 @@
 ```
 dca-backtester/
 ├── README.md
+├── docker-compose.yml
 ├── docs/
 │   ├── SPEC.md
 │   ├── ARCHITECTURE.md
@@ -51,54 +53,67 @@ dca-backtester/
 │   ├── package.json
 │   └── src/
 │       ├── main.tsx
-│       ├── App.tsx
+│       ├── App.tsx                       # Pestañas + tema + layout
 │       ├── components/
 │       │   ├── ConfigPanel/
-│       │   │   ├── ConfigPanel.tsx       # Formulario principal
-│       │   │   ├── AssetSelector.tsx     # Select de activos curados
-│       │   │   ├── DateRangePicker.tsx   # Date picker + presets
-│       │   │   └── FrequencySelector.tsx
+│       │   │   ├── ConfigPanel.tsx       # Formulario principal del backtest
+│       │   │   ├── AssetSelector.tsx
+│       │   │   ├── FrequencySelector.tsx
+│       │   │   ├── configPanelConstants.ts
+│       │   │   └── DateRangePicker/      # Calendario + presets (subcomponentes)
 │       │   ├── ResultsPanel/
-│       │   │   ├── ResultsPanel.tsx      # Contenedor de resultados
-│       │   │   ├── MetricCard.tsx        # Card individual de métrica
-│       │   │   └── ComparisonTable.tsx   # DCA vs Lump Sum
-│       │   └── Chart/
-│       │       ├── BacktestChart.tsx     # Gráfico principal (Recharts)
-│       │       └── ChartTooltip.tsx      # Tooltip custom
+│       │   │   ├── ResultsPanel.tsx
+│       │   │   ├── MetricCard.tsx
+│       │   │   └── ComparisonTable.tsx
+│       │   ├── Chart/
+│       │   │   ├── BacktestChart.tsx
+│       │   │   └── ChartTooltip.tsx
+│       │   ├── ThemeToggle/
+│       │   │   └── ThemeToggle.tsx
+│       │   ├── CompoundCalculator/
+│       │   │   └── CompoundCalculator.tsx  # Solo cliente
+│       │   └── PortfolioAllocator/
+│       │       └── PortfolioAllocator.tsx  # Solo cliente
 │       ├── hooks/
-│       │   └── useBacktest.ts            # Estado y lógica de la llamada API
+│       │   └── useBacktest.ts
 │       ├── services/
-│       │   └── api.ts                    # Cliente HTTP hacia FastAPI
+│       │   └── api.ts                    # health, assets, backtest + errores
+│       ├── lib/
+│       │   ├── format.ts
+│       │   ├── themeStorage.ts           # Persistencia del tema
+│       │   └── deriveBuyRows.ts          # Filas recientes de compras (UI)
 │       ├── types/
-│       │   └── index.ts                  # TypeScript types compartidos
+│       │   └── index.ts
 │       └── constants/
-│           └── assets.ts                 # Lista curada de activos
+│           └── assets.ts                 # Metadatos extra para la UI (p. ej. dataFrom)
 │
 └── backend/
     ├── requirements.txt
     ├── .env.example
     └── app/
         ├── main.py                       # FastAPI app + CORS
+        ├── constants.py                  # CURATED_TICKERS (validación backtest)
         ├── api/
         │   └── v1/
-        │       ├── router.py             # Agrupa todos los endpoints v1
+        │       ├── router.py             # Prefijo /api/v1
         │       └── endpoints/
+        │           ├── health.py         # GET /health
         │           ├── backtest.py       # POST /backtest
         │           └── assets.py         # GET /assets
         ├── strategies/
-        │   ├── base.py                   # Clase abstracta Strategy
-        │   ├── dca.py                    # DCA Tradicional
-        │   └── registry.py              # Mapa nombre → clase
+        │   ├── base.py                   # Strategy, dataclasses de resultado
+        │   ├── dca.py                    # DCA tradicional
+        │   └── registry.py               # nombre → clase; get_strategy() devuelve instancia
         ├── data/
-        │   ├── fetcher.py               # Dispatcher: Binance (crypto) o Alpha Vantage (ETFs)
+        │   ├── fetcher.py                # Caché, locks por archivo, get_prices()
         │   ├── sources/
         │   │   ├── __init__.py
-        │   │   ├── binance.py           # Klines públicos, sin API key
-        │   │   └── alphavantage.py      # TIME_SERIES_DAILY/WEEKLY/MONTHLY, requiere key
-        │   └── cache/                   # CSVs por ticker (gitignored)
+        │   │   ├── binance.py            # Klines públicos (crypto)
+        │   │   └── alphavantage.py       # ETFs: TIME_SERIES_WEEKLY_ADJUSTED (+ helpers)
+        │   └── cache/                    # CSVs (gitignored)
         └── models/
-            ├── request.py               # Pydantic: BacktestRequest
-            └── response.py              # Pydantic: BacktestResponse
+            ├── request.py                # BacktestRequest, enums Frequency / StrategyName
+            └── response.py               # DTOs de respuesta + HealthResponse
 ```
 
 ---
@@ -110,13 +125,13 @@ El ecosistema financiero en Python (pandas, numpy, requests a APIs de mercado) n
 
 ### Por qué Binance + Alpha Vantage con caché local
 
-**Crypto (BTC, ETH, SOL):** Se usa la API pública de Binance (`/api/v3/klines`), sin API key. Devuelve velas OHLCV históricas con paginación de 1000 registros. Sin rate limiting severo para datos históricos.
+**Crypto (BTC, ETH, SOL):** API pública de Binance (`/api/v3/klines`), sin API key. Velas diarias; el caché guarda solo **Date** y **Close** en `{TICKER}.csv` (ej. `BTC-USD.csv`).
 
-**ETFs (SPY, QQQ, VTI):** Se usa Alpha Vantage con API key gratuita. El endpoint varía según la frecuencia del backtest: `TIME_SERIES_MONTHLY` para DCA mensual, `TIME_SERIES_WEEKLY` para semanal, y `TIME_SERIES_DAILY` (compact) para diario. El historial completo en diario requiere plan premium.
+**ETFs (SPY, QQQ, VTI):** Siempre se descarga **`TIME_SERIES_WEEKLY_ADJUSTED`** (plan gratuito, historial largo, cierre ajustado). El archivo de caché es `{TICKER}_wav.csv`. Para DCA **semanal** o **mensual**, `get_prices()` remuestrea la serie semanal con `resample` a la frecuencia pedida. La frecuencia **diaria** para ETFs está bloqueada en validación (plan gratuito / coherencia de datos).
 
-**Caché CSV:** igual que antes — primera descarga completa, se guarda en `cache/{ticker}_{sampling}.csv` con columnas `Date,Close`. Las llamadas siguientes leen del CSV si tiene menos de 24 horas.
+**Caché y frescura:** además de `CACHE_MAX_AGE_HOURS` (por defecto 24 h), si el último **Date** del CSV está “demasiado viejo” respecto a hoy, se fuerza re-descarga: **1 día** para crypto, **7 días** para ETF (`_MAX_DATA_STALENESS_DAYS` en `fetcher.py`). Hay **locks** por nombre de archivo para evitar condiciones de carrera si dos requests calientan el mismo ticker.
 
-**Swap path:** si alguna fuente falla, solo hay que tocar `sources/binance.py` o `sources/alphavantage.py`. El dispatcher y el resto del sistema no cambian.
+**Swap path:** cambiar fuente implica principalmente `sources/binance.py` o `sources/alphavantage.py`; el contrato de `get_prices()` se mantiene.
 
 ### Activos soportados
 
@@ -135,30 +150,23 @@ Para que agregar DCA Ponderado, Value Averaging, o cualquier otra estrategia sea
 1. Crear un archivo nuevo en `strategies/`
 2. Extender `Strategy` e implementar `run()`
 3. Registrar en `registry.py`
+4. Si el nombre es parte del contrato público, añadirlo al enum `StrategyName` en `models/request.py` y documentar en `API.md`
 
-El endpoint `/backtest` no necesita cambiar nunca.
+El endpoint `/backtest` no debería necesitar cambios de routing al agregar estrategias; sí puede requerirse ampliar validación o parámetros en el modelo de request.
 
 ```python
-# strategies/base.py
+# app/strategies/base.py
 from abc import ABC, abstractmethod
 import pandas as pd
-from app.models.response import BacktestResult
+# BacktestResult y demás dataclasses de resultado se definen en este mismo módulo.
 
 class Strategy(ABC):
     @abstractmethod
-    def run(self, prices: pd.Series, params: dict) -> BacktestResult:
-        """
-        Ejecuta el backtest sobre la serie de precios.
-        
-        Args:
-            prices: Serie temporal con índice DatetimeIndex y precios de cierre ajustados
-            params: Diccionario con parámetros específicos de la estrategia
-            
-        Returns:
-            BacktestResult con métricas y datos para el gráfico
-        """
+    def run(self, prices: pd.Series, params: dict) -> "BacktestResult":
         ...
 ```
+
+`BacktestResult` y tipos relacionados (`BacktestMetrics`, `DailySnapshot`, etc.) viven en **`app.strategies.base`**, no en `app.models.response` (esos son DTOs Pydantic para JSON).
 
 ### Por qué Recharts y no Chart.js / D3
 
@@ -166,7 +174,7 @@ Recharts está construido sobre D3 pero expone una API declarativa en React con 
 
 ### Estado en frontend
 
-No se usa Redux ni Zustand. El estado del backtest vive en el hook `useBacktest` con `useState` + `useCallback`. Si el proyecto crece hacia multi-estrategia o comparaciones complejas, se evalúa agregar Zustand en ese momento.
+No se usa Redux ni Zustand. El estado del backtest vive en el hook `useBacktest` con `useState` + `useCallback`. El tema claro/oscuro se guarda en `localStorage` (`themeStorage.ts`). Las pestañas de calculadora y cartera son estado local en sus componentes. Si el proyecto crece hacia multi-estrategia o comparaciones complejas, se evalúa agregar Zustand en ese momento.
 
 ---
 
@@ -181,8 +189,9 @@ El backend configura CORS para aceptar requests desde `localhost:5173` (dev) y e
 ```bash
 # backend/.env
 CACHE_DIR=app/data/cache          # Dónde guardar los CSVs
-CACHE_MAX_AGE_HOURS=24            # Cuándo refrescar el caché
+CACHE_MAX_AGE_HOURS=24            # Antigüedad máxima del archivo de caché (horas)
 ALLOWED_ORIGINS=http://localhost:5173
+ALPHAVANTAGE_API_KEY=...          # Requerida para ETFs (Alpha Vantage)
 ```
 
 ---
