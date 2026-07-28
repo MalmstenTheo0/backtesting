@@ -72,6 +72,18 @@ class Strategy(ABC):
         Helper compartido por todas las estrategias para calcular el lump sum.
         Puede sobreescribirse si la estrategia necesita una comparación diferente.
         """
+        if total_capital <= 0:
+            # Sin capital no hay comparación posible. Devolver ceros en vez de dividir
+            # por cero: numpy produciría nan, y nan no es JSON válido, así que la
+            # respuesta de la API quedaría corrupta.
+            return LumpSumComparison(
+                capital=0.0,
+                units_bought=0.0,
+                final_value=0.0,
+                return_pct=0.0,
+                cagr_pct=0.0,
+            )
+
         first_price = prices.iloc[0]
         last_price = prices.iloc[-1]
         commission = total_capital * (commission_pct / 100)
