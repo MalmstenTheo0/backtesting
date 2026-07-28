@@ -117,8 +117,11 @@ class Strategy(ABC):
         units = (total_capital - commission) / first_price
         final_value = units * last_price
         return_pct = ((final_value - total_capital) / total_capital) * 100
-        years = (prices.index[-1] - prices.index[0]).days / 365.25
-        cagr = ((final_value / total_capital) ** (1 / years) - 1) * 100 if years > 0 else 0
+        # Un único desembolso al inicio: XIRR coincide acá con el CAGR clásico.
+        cagr = money_weighted_return_pct([
+            (prices.index[0].date(), -float(total_capital)),
+            (prices.index[-1].date(), float(final_value)),
+        ])
 
         return LumpSumComparison(
             capital=round(total_capital, 2),
@@ -162,6 +165,7 @@ from app.strategies.base import (
     Strategy, BacktestResult, BacktestMetrics,
     BuyEvent, DailySnapshot
 )
+from app.strategies.metrics import money_weighted_return_pct
 
 
 class DCAStrategy(Strategy):
@@ -216,8 +220,14 @@ class DCAStrategy(Strategy):
         final_value = total_units * prices.iloc[-1]
         absolute_return = final_value - total_invested
         return_pct = (absolute_return / total_invested * 100) if total_invested > 0 else 0
-        years = (prices.index[-1] - prices.index[0]).days / 365.25
-        cagr = ((final_value / total_invested) ** (1 / years) - 1) * 100 if years > 0 and total_invested > 0 else 0
+
+        # Retorno anualizado ponderado por dinero: cada aporte se descuenta desde su
+        # propia fecha. No uses (final_value / total_invested) ** (1 / años): eso trata
+        # todo el capital como si hubiera entrado el primer día y subestima el
+        # rendimiento, porque el aporte del último período no estuvo invertido un año.
+        cash_flows = [(evento.date, -evento.amount_invested) for evento in buy_events]
+        cash_flows.append((prices.index[-1].date(), float(final_value)))
+        cagr = money_weighted_return_pct(cash_flows)
 
         metrics = BacktestMetrics(
             total_invested=round(total_invested, 2),
