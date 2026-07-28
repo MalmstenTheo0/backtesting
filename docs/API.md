@@ -74,7 +74,7 @@ Devuelve la lista curada de activos soportados.
 
 Ejecuta un backtest y devuelve métricas y datos para el gráfico.
 
-Los precios de **cripto** provienen de la API pública de Binance (velas diarias). Los de **ETFs** se obtienen con Alpha Vantage **`TIME_SERIES_WEEKLY_ADJUSTED`**, se cachean en el servidor y se remuestrean según la frecuencia del DCA (`weekly` / `monthly`).
+Los precios de **cripto** provienen de la API pública de Binance (velas diarias). Los de **ETFs** se obtienen con Alpha Vantage **`TIME_SERIES_WEEKLY_ADJUSTED`** (cierres semanales). En ambos casos la serie se cachea en el servidor y se entrega con su densidad nativa: la `frequency` del DCA determina **en qué fechas se compra**, no cada cuánto viene un dato.
 
 > **Nota:** la frecuencia `"daily"` **no está disponible para ETFs** (`SPY`, `QQQ`, `VTI`). Usá `"weekly"` o `"monthly"`. Las peticiones con ETF + `daily` reciben **422** (validación en el modelo de request).
 
@@ -206,23 +206,21 @@ El cuerpo del request puede incluir `dca_weighted` o `value_averaging` por compa
 | `return_pct` | Retorno porcentual total |
 | `cagr_pct` | CAGR del lump sum |
 
-**`chart_data`** — Un punto por **fecha** de la serie de precios usada en el backtest (la densidad depende del activo y la `frequency`: p. ej. cripto en diario tiene un punto por día hábil; ETF en mensual tiene un punto por mes tras el remuestreo).
+**`chart_data`** — Un punto por **fecha** de la serie de precios usada en el backtest. La densidad depende de la fuente del activo, no de la `frequency`: cripto tiene un punto por día, los ETFs uno por semana.
 
-Como en `weekly` y `monthly` la serie ya llega remuestreada a un punto por período, en esas frecuencias **todos** los puntos de `chart_data` tienen `is_buy: true`. La distinción entre punto de compra y punto intermedio solo es visible con `frequency: "daily"`.
+`chart_data` conserva **un punto por fecha de cotización**, independientemente de la `frequency`. La frecuencia determina en qué fechas hay compra (`is_buy: true`), no la densidad de la serie: así el gráfico puede mostrar la curva real del valor del portfolio entre una compra y la siguiente.
 
 | Campo | Descripción |
 |---|---|
-| `date` | Fecha del punto (YYYY-MM-DD). Ver la nota sobre semanal/mensual más abajo |
-| `price` | Cierre del activo en `date` si la frecuencia es `daily`; el primer cierre del período si es `weekly` o `monthly` |
+| `date` | Fecha de cotización del punto (YYYY-MM-DD). Siempre un día real con precio en la fuente |
+| `price` | Cierre del activo en `date` |
 | `invested` | Capital invertido acumulado hasta esa fecha |
 | `portfolio_value` | Valor del portfolio DCA en esa fecha |
 | `is_buy` | `true` si en esa fecha hubo compra DCA |
 
-> **Nota sobre `date` en `weekly` y `monthly`:** en esas frecuencias la serie se remuestrea, y `date` es la **etiqueta del período**, no necesariamente un día de cotización. El remuestreo semanal (`W-MON`) etiqueta cada semana con el lunes que la cierra, y el mensual (`MS`) con el día 1 del mes. El `price` asociado es el **primer cierre disponible dentro de ese período**, que puede corresponder a otro día.
+> **Cómo se eligen las fechas de compra:** se agrupa la serie por período (semana ISO o mes calendario) y se compra el **primer día con cotización** de cada uno. Así un período no se pierde cuando su primer día no cotiza: si el lunes es feriado, la compra semanal cae el martes; si el día 1 del mes no opera, la mensual cae el primer día hábil.
 >
-> Ejemplo real con `SPY` en `weekly`: la fuente entrega cierres semanales de viernes (`2024-01-05`, `2024-01-12`, `2024-01-19`), y la API los devuelve con fecha `2024-01-08`, `2024-01-15` y `2024-01-22`. El precio del viernes 5 se reporta con fecha lunes 8.
->
-> Para graficar en un eje temporal esto es suficiente, pero **no conviene usar `date` como fecha de mercado exacta** en `weekly`/`monthly`. Con `frequency: "daily"` no aplica: ahí `date` y `price` son siempre del mismo día real.
+> Las fechas devueltas siempre existen en la serie de precios: `date` y `price` corresponden al mismo día real de mercado en todas las frecuencias.
 
 > **Nota de volumen:** con DCA diario sobre muchos años, el array puede crecer (del orden de miles de puntos). El frontend debe renderizar sin bloquear el hilo principal (p. ej. Recharts).
 

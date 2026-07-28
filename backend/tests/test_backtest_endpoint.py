@@ -149,6 +149,59 @@ class TestHappyPath:
         }
 
 
+class TestDensidadDeChartData:
+    """
+    `chart_data` conserva un punto por dia de la serie, no uno por periodo DCA.
+
+    Es lo que da una curva de valor de portfolio real entre compras. Antes el fetcher
+    remuestreaba antes de llegar a la estrategia, asi que en weekly y monthly todos los
+    puntos eran compra y la distincion `is_buy` no distinguia nada.
+    """
+
+    def test_en_mensual_el_chart_conserva_todos_los_dias(
+        self, client: TestClient, precios_mockeados: pd.Series
+    ) -> None:
+        chart = client.post(BACKTEST_URL, json=request_body(frequency="monthly")).json()[
+            "chart_data"
+        ]
+
+        assert len(chart) == len(precios_mockeados)
+
+    def test_en_mensual_solo_hay_compra_el_primer_dia_de_cada_mes(self, client: TestClient) -> None:
+        # La serie mockeada va de 2020-01-01 a 2020-02-29 (60 dias).
+        chart = client.post(BACKTEST_URL, json=request_body(frequency="monthly")).json()[
+            "chart_data"
+        ]
+
+        compras = [p["date"] for p in chart if p["is_buy"]]
+        assert compras == ["2020-01-01", "2020-02-01"]
+
+    def test_en_semanal_hay_menos_compras_que_puntos(self, client: TestClient) -> None:
+        chart = client.post(BACKTEST_URL, json=request_body(frequency="weekly")).json()[
+            "chart_data"
+        ]
+
+        compras = [p for p in chart if p["is_buy"]]
+        assert 0 < len(compras) < len(chart)
+
+    def test_en_diario_todos_los_puntos_son_compra(self, client: TestClient) -> None:
+        chart = client.post(BACKTEST_URL, json=request_body(frequency="daily")).json()["chart_data"]
+
+        assert all(p["is_buy"] for p in chart)
+
+    def test_el_valor_del_portfolio_se_actualiza_tambien_los_dias_sin_compra(
+        self, client: TestClient
+    ) -> None:
+        # Sin esto el grafico entre compras seria una recta, no la curva real.
+        chart = client.post(BACKTEST_URL, json=request_body(frequency="monthly")).json()[
+            "chart_data"
+        ]
+
+        sin_compra = [p for p in chart if not p["is_buy"]]
+        assert sin_compra
+        assert all(p["portfolio_value"] > 0 for p in sin_compra)
+
+
 class TestValidacionDelBody:
     def test_rango_menor_al_minimo_de_30_dias(self, client: TestClient) -> None:
         respuesta = client.post(

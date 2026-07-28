@@ -127,7 +127,7 @@ El ecosistema financiero en Python (pandas, numpy, requests a APIs de mercado) n
 
 **Crypto (BTC, ETH, SOL):** API pública de Binance (`/api/v3/klines`), sin API key. Velas diarias; el caché guarda solo **Date** y **Close** en `{TICKER}.csv` (ej. `BTC-USD.csv`).
 
-**ETFs (SPY, QQQ, VTI):** Siempre se descarga **`TIME_SERIES_WEEKLY_ADJUSTED`** (plan gratuito, historial largo, cierre ajustado). El archivo de caché es `{TICKER}_wav.csv`. Para DCA **semanal** o **mensual**, `get_prices()` remuestrea la serie semanal con `resample` a la frecuencia pedida. La frecuencia **diaria** para ETFs está bloqueada en validación (plan gratuito / coherencia de datos).
+**ETFs (SPY, QQQ, VTI):** Siempre se descarga **`TIME_SERIES_WEEKLY_ADJUSTED`** (plan gratuito, historial largo, cierre ajustado). El archivo de caché es `{TICKER}_wav.csv`. `get_prices()` entrega la serie semanal tal cual: elegir en qué fechas se compra es responsabilidad de la estrategia (`Strategy._get_period_dates`), que agrupa por período y toma el primer día con cotización de cada uno. La frecuencia **diaria** para ETFs está bloqueada en validación (plan gratuito / coherencia de datos).
 
 **Caché y frescura:** además de `CACHE_MAX_AGE_HOURS` (por defecto 24 h), si el último **Date** del CSV está “demasiado viejo” respecto a hoy, se fuerza re-descarga: **1 día** para crypto, **7 días** para ETF (`_MAX_DATA_STALENESS_DAYS` en `fetcher.py`). Hay **locks** por nombre de archivo para evitar condiciones de carrera si dos requests calientan el mismo ticker.
 

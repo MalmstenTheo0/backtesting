@@ -105,9 +105,7 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
         )
 
     try:
-        prices = get_prices(
-            ticker, body.start_date, body.end_date, dca_frequency=body.frequency.value
-        )
+        prices = get_prices(ticker, body.start_date, body.end_date)
     except ValueError as e:
         raise _to_http(e) from e
 
