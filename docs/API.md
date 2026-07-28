@@ -193,8 +193,14 @@ El cuerpo del request puede incluir `dca_weighted` o `value_averaging` por compa
 | `final_value` | Valor del portfolio al último día del período |
 | `absolute_return` | `final_value - total_invested` |
 | `return_pct` | Retorno porcentual total |
-| `cagr_pct` | Tasa de crecimiento anual compuesta |
+| `cagr_pct` | Retorno anualizado **ponderado por dinero** (XIRR): descuenta cada aporte desde su propia fecha. Ver la nota de abajo |
 | `total_units` | Total de unidades/acciones acumuladas |
+
+> **Sobre `cagr_pct`:** el CAGR clásico supone un único desembolso al inicio, y en un DCA eso no se cumple: el aporte del último mes estuvo invertido semanas, no años. Anualizar con `(final_value / total_invested) ** (1 / años)` trata todo el capital como si hubiera entrado el día uno, lo que **subestima** el rendimiento cuando el activo sube, porque reparte la ganancia sobre más tiempo-dinero del que realmente hubo.
+>
+> El campo expone la **TIR anualizada (XIRR)**: la tasa que hace cero el valor presente de los flujos en sus fechas reales, tomando cada aporte como salida en su día y el valor final como entrada en el último. Es la métrica estándar de rendimiento ponderado por dinero.
+>
+> Para un único par de flujos, XIRR y CAGR son la misma ecuación, así que `lump_sum.cagr_pct` no cambia y las dos cifras siguen siendo comparables entre sí.
 
 **`lump_sum`** — Qué hubiera pasado invirtiendo todo el día 1:
 
@@ -204,7 +210,7 @@ El cuerpo del request puede incluir `dca_weighted` o `value_averaging` por compa
 | `units_bought` | Unidades compradas el día 1 con todo el capital |
 | `final_value` | Valor al final del período |
 | `return_pct` | Retorno porcentual total |
-| `cagr_pct` | CAGR del lump sum |
+| `cagr_pct` | Retorno anualizado del lump sum. Con un único desembolso inicial, XIRR y CAGR coinciden exactamente, así que es comparable con el `cagr_pct` del DCA |
 
 **`chart_data`** — Un punto por **fecha** de la serie de precios usada en el backtest. La densidad depende de la fuente del activo, no de la `frequency`: cripto tiene un punto por día, los ETFs uno por semana.
 

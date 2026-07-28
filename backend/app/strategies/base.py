@@ -6,6 +6,8 @@ from datetime import date
 
 import pandas as pd
 
+from app.strategies.metrics import money_weighted_return_pct
+
 
 @dataclass
 class BuyEvent:
@@ -89,8 +91,15 @@ class Strategy(ABC):
         units = (total_capital - commission) / first_price
         final_value = units * last_price
         return_pct = ((final_value - total_capital) / total_capital) * 100
-        years = (prices.index[-1] - prices.index[0]).days / 365.25
-        cagr = ((final_value / total_capital) ** (1 / years) - 1) * 100 if years > 0 else 0
+        # Un único desembolso al inicio: acá XIRR coincide exactamente con el CAGR
+        # clásico. Se usa la misma función que el DCA para que ambas cifras sean
+        # la misma magnitud y la comparación entre estrategias tenga sentido.
+        cagr = money_weighted_return_pct(
+            [
+                (prices.index[0].date(), -float(total_capital)),
+                (prices.index[-1].date(), float(final_value)),
+            ]
+        )
 
         return LumpSumComparison(
             capital=round(total_capital, 2),

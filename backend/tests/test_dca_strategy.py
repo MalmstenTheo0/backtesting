@@ -126,17 +126,36 @@ class TestComisiones:
 
 
 class TestCAGR:
-    def test_calcula_cagr_anualizado_sobre_el_periodo_real(self, strategy: DCAStrategy) -> None:
+    def test_descuenta_cada_aporte_desde_su_propia_fecha(self, strategy: DCAStrategy) -> None:
         # 2020-01-01 -> 2022-01-01 son 731 días => 731 / 365.25 = 2.0013689 años.
         # Compras: 100/100 = 1.0 u y 100/400 = 0.25 u => 1.25 u; final 1.25 * 400 = 500.
-        # ratio = 500 / 200 = 2.5  =>  CAGR = 2.5 ** (1 / 2.0013689) - 1 = 0.580643
+        #
+        # Flujos: -100 el día 0, -100 el último día, +500 el último día.
+        # El segundo aporte vuelve intacto, así que la ecuación se reduce a
+        #   -100 + 400 / (1 + r) ** 2.0013689 = 0  =>  r = 4 ** (1 / 2.0013689) - 1
+        #                                          =>  r = 0.999052
+        #
+        # La fórmula anterior daba 58.06 %: anualizaba sobre los 200 aportados como si
+        # todo hubiera entrado el primer día, cuando la mitad no estuvo invertida ni un
+        # día. Repartir la ganancia sobre más tiempo-dinero del que hubo subestima.
         prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 400.0])
 
         result = strategy.run(prices, dca_params())
 
         assert result.metrics.total_invested == 200.0
         assert result.metrics.final_value == 500.0
-        assert result.metrics.cagr_pct == 58.06
+        assert result.metrics.cagr_pct == 99.91
+
+    def test_la_tasa_del_dca_y_la_del_lump_sum_son_la_misma_magnitud(
+        self, strategy: DCAStrategy
+    ) -> None:
+        # Ambas se calculan con la misma función, así que la comparación que muestra
+        # la UI es entre cifras equivalentes y no entre dos definiciones distintas.
+        prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 400.0])
+
+        result = strategy.run(prices, dca_params())
+
+        assert result.metrics.cagr_pct == result.lump_sum.cagr_pct == 99.91
 
     def test_cagr_es_cero_cuando_el_periodo_no_llega_a_un_dia(self, strategy: DCAStrategy) -> None:
         # Serie de un solo punto => years == 0 => no se puede anualizar.

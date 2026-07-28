@@ -7,6 +7,7 @@ from app.strategies.base import (
     DailySnapshot,
     Strategy,
 )
+from app.strategies.metrics import money_weighted_return_pct
 
 
 class DCAStrategy(Strategy):
@@ -68,12 +69,14 @@ class DCAStrategy(Strategy):
         final_value = total_units * prices.iloc[-1]
         absolute_return = final_value - total_invested
         return_pct = (absolute_return / total_invested * 100) if total_invested > 0 else 0
-        years = (prices.index[-1] - prices.index[0]).days / 365.25
-        cagr = (
-            ((final_value / total_invested) ** (1 / years) - 1) * 100
-            if years > 0 and total_invested > 0
-            else 0
-        )
+
+        # Cada aporte se descuenta desde su propia fecha: el del último período estuvo
+        # invertido días, no años. La fórmula anterior anualizaba sobre el total
+        # aportado como si todo hubiera entrado el primer día, lo que reparte la
+        # ganancia sobre más tiempo-dinero del que hubo y subestima el rendimiento.
+        cash_flows = [(evento.date, -evento.amount_invested) for evento in buy_events]
+        cash_flows.append((prices.index[-1].date(), float(final_value)))
+        cagr = money_weighted_return_pct(cash_flows)
 
         metrics = BacktestMetrics(
             total_invested=round(total_invested, 2),
