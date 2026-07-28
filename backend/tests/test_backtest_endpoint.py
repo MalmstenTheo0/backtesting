@@ -202,6 +202,35 @@ class TestDensidadDeChartData:
         assert all(p["portfolio_value"] > 0 for p in sin_compra)
 
 
+class TestCompresion:
+    def test_una_respuesta_grande_viaja_comprimida(self, client: TestClient) -> None:
+        respuesta = client.post(
+            BACKTEST_URL, json=request_body(), headers={"Accept-Encoding": "gzip"}
+        )
+
+        assert respuesta.headers.get("content-encoding") == "gzip"
+        assert respuesta.status_code == 200
+
+    def test_un_cliente_que_no_acepta_gzip_recibe_json_plano(self, client: TestClient) -> None:
+        respuesta = client.post(
+            BACKTEST_URL, json=request_body(), headers={"Accept-Encoding": "identity"}
+        )
+
+        assert respuesta.headers.get("content-encoding") != "gzip"
+        assert respuesta.status_code == 200
+        assert respuesta.json()["summary"]["ticker"] == "BTC-USD"
+
+    def test_comprimir_no_altera_el_contenido(self, client: TestClient) -> None:
+        con_gzip = client.post(
+            BACKTEST_URL, json=request_body(), headers={"Accept-Encoding": "gzip"}
+        ).json()
+        sin_gzip = client.post(
+            BACKTEST_URL, json=request_body(), headers={"Accept-Encoding": "identity"}
+        ).json()
+
+        assert con_gzip == sin_gzip
+
+
 class TestValidacionDelBody:
     def test_rango_menor_al_minimo_de_30_dias(self, client: TestClient) -> None:
         respuesta = client.post(
