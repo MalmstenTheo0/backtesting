@@ -37,7 +37,8 @@ def _raise_if_av_root_messages(payload: Any) -> None:
         return
     if "Note" in payload:
         raise UpstreamRateLimitError(
-            "Alpha Vantage indica límite de frecuencia (p. ej. 5 peticiones/minuto en el plan gratuito). "
+            "Alpha Vantage indica límite de frecuencia "
+            "(p. ej. 5 peticiones/minuto en el plan gratuito). "
             "Espera unos minutos o revisa tu cuota en alphavantage.co."
         )
     if "Information" in payload:
@@ -71,7 +72,9 @@ def _parse_ohlcv_block(
         vals.append(float(row[close_key]))
 
     if not vals:
-        raise UpstreamResponseError(f"Serie vacía de Alpha Vantage ({series_label}) para {symbol!r}.")
+        raise UpstreamResponseError(
+            f"Serie vacía de Alpha Vantage ({series_label}) para {symbol!r}."
+        )
 
     s = pd.Series(vals, index=pd.DatetimeIndex(idx, name="Date"), name=ticker)
     return s.astype(float).sort_index()

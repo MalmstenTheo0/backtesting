@@ -33,7 +33,11 @@ def block_network(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def _blocked(*args: Any, **kwargs: Any) -> NoReturn:
         # requests.get(url, ...) -> args[0]; Session.request(self, method, url, ...) -> args[2]
-        target = kwargs.get("url") or (args[2] if len(args) > 2 else None) or (args[0] if args else "?")
+        target = (
+            kwargs.get("url")
+            or (args[2] if len(args) > 2 else None)
+            or (args[0] if args else "?")
+        )
         raise RuntimeError(_NETWORK_HINT.format(target=target))
 
     # Session.request es el punto único por donde pasa todo requests (incluido requests.get).

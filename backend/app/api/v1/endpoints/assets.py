@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.constants import CURATED_TICKERS
 from app.data.fetcher import get_assets
-from app.models.response import AssetItem, AssetType, AssetsResponse
+from app.models.response import AssetItem, AssetsResponse, AssetType
 
 router = APIRouter()
 

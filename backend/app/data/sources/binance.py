@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pandas as pd
 import requests
@@ -14,11 +14,11 @@ MAX_RETRIES = 3
 
 
 def _date_start_ms_utc(d: date) -> int:
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000)
+    return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp() * 1000)
 
 
 def _now_ms_utc() -> int:
-    return int(datetime.now(timezone.utc).timestamp() * 1000)
+    return int(datetime.now(UTC).timestamp() * 1000)
 
 
 def _get_json_with_retry(params: dict) -> list:
@@ -37,7 +37,9 @@ def _get_json_with_retry(params: dict) -> list:
                     f"Binance API error: {data.get('msg', data)!r} (code={data.get('code')})"
                 )
             if not isinstance(data, list):
-                raise UpstreamResponseError(f"Respuesta inesperada de Binance: {type(data).__name__}")
+                raise UpstreamResponseError(
+                    f"Respuesta inesperada de Binance: {type(data).__name__}"
+                )
             return data
         except ValueError:
             raise
@@ -105,7 +107,7 @@ def fetch(
     vals = []
     for row in sorted(unique_rows, key=lambda x: int(x[0])):
         ts_ms = int(row[0])
-        dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).replace(tzinfo=None)
+        dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=UTC).replace(tzinfo=None)
         idx.append(dt)
         vals.append(float(row[4]))
 

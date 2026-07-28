@@ -9,7 +9,7 @@ falla en vez de salir a internet.
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -21,7 +21,7 @@ from app.data.sources import binance
 def ms_utc(fecha: str) -> int:
     """Milisegundos UTC de la medianoche de `fecha`, como los devuelve Binance."""
     d = date.fromisoformat(fecha)
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000)
+    return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp() * 1000)
 
 
 def kline(fecha: str, close: float) -> list[Any]:
