@@ -4,8 +4,9 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-178-success)
-![Coverage](https://img.shields.io/badge/coverage-98%25-success)
+![Tests](https://img.shields.io/badge/tests-267-success)
+![Coverage](https://img.shields.io/badge/backend%20coverage-98%25-success)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 Simulá qué habría pasado si hubieras invertido un monto fijo, todos los meses, durante
 los últimos años. Datos históricos reales de cripto y ETFs, y la comparación contra
@@ -42,7 +43,7 @@ rinde más. El backtester calcula las dos y las pone lado a lado.
 - **Backtest de DCA** sobre precios históricos reales, con frecuencia diaria, semanal o mensual.
 - **Comisiones** configurables por operación, para que el resultado no sea optimista de más.
 - **Comparación contra lump sum**: el mismo capital invertido de una sola vez el primer día.
-- **Métricas**: capital invertido, valor final, retorno absoluto y porcentual, CAGR, unidades acumuladas y comisiones pagadas.
+- **Métricas**: capital invertido, valor final, retorno absoluto y porcentual, retorno anualizado ponderado por dinero (XIRR), unidades acumuladas y comisiones pagadas.
 - **Gráfico** de la evolución del portfolio contra el capital invertido, marcando cada compra.
 - **Calculadora de interés compuesto** y **asignador de cartera**, que corren enteramente en el navegador.
 - Tema claro/oscuro.
@@ -59,7 +60,7 @@ Activos disponibles: `BTC-USD`, `ETH-USD`, `SOL-USD` (Binance) y `SPY`, `QQQ`, `
 | Gráficos | Recharts |
 | Estilos | Tailwind CSS |
 | Datos | API pública de Binance (cripto) · Alpha Vantage `TIME_SERIES_WEEKLY_ADJUSTED` (ETFs) · caché CSV local |
-| Calidad | pytest · ruff · GitHub Actions |
+| Calidad | pytest · ruff · Vitest · Testing Library · GitHub Actions |
 
 ## Cómo correrlo
 
@@ -100,20 +101,24 @@ frecuencia semanal y mensual, no diaria.
 ## Tests
 
 ```bash
-cd backend
-pip install -r requirements-dev.txt
-pytest
+cd backend && pip install -r requirements-dev.txt && pytest
 ```
 
-178 tests, 98% de cobertura sobre `app/`. **No necesitan red ni claves de API**: una
-fixture `autouse` bloquea cualquier salida HTTP y redirige el caché a un directorio
-temporal, así que la suite corre igual desde un clone limpio y es determinista.
+```bash
+cd frontend && npm install && npm test
+```
 
-Qué se cubre:
+267 tests: 205 en el backend con 98% de cobertura sobre `app/`, y 62 en el frontend.
+**No necesitan red ni claves de API**: una fixture `autouse` bloquea cualquier salida
+HTTP y redirige el caché a un directorio temporal, así que la suite corre igual desde un
+clone limpio y es determinista.
 
-- **Motor de cálculo** (`app/strategies/`, 100%): compras, comisiones, CAGR, comparación
-  contra lump sum y bordes como capital cero o series de un solo punto. Los valores
-  esperados están calculados a mano en cada test, no copiados de la salida del código.
+Qué se cubre en el backend:
+
+- **Motor de cálculo** (`app/strategies/`, 100%): compras, comisiones, retorno anualizado,
+  comparación contra lump sum y bordes como capital cero o series de un solo punto. Los
+  valores esperados están calculados a mano en cada test, no copiados de la salida del
+  código.
 - **Alineación de períodos**: que un lunes feriado no haga perder la semana, y que el
   límite del año ISO (2019-12-30 pertenece a la semana 1 de 2020) se agrupe bien.
 - **Caché**: sus dos condiciones de invalidación (antigüedad del archivo y frescura del
@@ -123,12 +128,18 @@ Qué se cubre:
 - **Contrato de la API**: validaciones del request y el mapeo de cada error de la capa de
   datos a su status code, extremo a extremo.
 
-Lint y formato:
+Y en el frontend: la traducción de los errores de FastAPI a texto para el usuario, el
+guard contra respuestas fuera de orden cuando se cambia de activo con un pedido en vuelo,
+y los bordes de calendario del selector de fechas.
+
+Lint, formato y typecheck:
 
 ```bash
-cd backend
-ruff check .
-ruff format --check .
+cd backend && ruff check . && ruff format --check .
+```
+
+```bash
+cd frontend && npm run lint
 ```
 
 ## Documentación
