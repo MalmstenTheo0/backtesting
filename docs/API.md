@@ -208,13 +208,21 @@ El cuerpo del request puede incluir `dca_weighted` o `value_averaging` por compa
 
 **`chart_data`** — Un punto por **fecha** de la serie de precios usada en el backtest (la densidad depende del activo y la `frequency`: p. ej. cripto en diario tiene un punto por día hábil; ETF en mensual tiene un punto por mes tras el remuestreo).
 
+Como en `weekly` y `monthly` la serie ya llega remuestreada a un punto por período, en esas frecuencias **todos** los puntos de `chart_data` tienen `is_buy: true`. La distinción entre punto de compra y punto intermedio solo es visible con `frequency: "daily"`.
+
 | Campo | Descripción |
 |---|---|
-| `date` | Fecha del punto (YYYY-MM-DD) |
-| `price` | Precio de cierre del activo en esa fecha |
+| `date` | Fecha del punto (YYYY-MM-DD). Ver la nota sobre semanal/mensual más abajo |
+| `price` | Cierre del activo en `date` si la frecuencia es `daily`; el primer cierre del período si es `weekly` o `monthly` |
 | `invested` | Capital invertido acumulado hasta esa fecha |
 | `portfolio_value` | Valor del portfolio DCA en esa fecha |
 | `is_buy` | `true` si en esa fecha hubo compra DCA |
+
+> **Nota sobre `date` en `weekly` y `monthly`:** en esas frecuencias la serie se remuestrea, y `date` es la **etiqueta del período**, no necesariamente un día de cotización. El remuestreo semanal (`W-MON`) etiqueta cada semana con el lunes que la cierra, y el mensual (`MS`) con el día 1 del mes. El `price` asociado es el **primer cierre disponible dentro de ese período**, que puede corresponder a otro día.
+>
+> Ejemplo real con `SPY` en `weekly`: la fuente entrega cierres semanales de viernes (`2024-01-05`, `2024-01-12`, `2024-01-19`), y la API los devuelve con fecha `2024-01-08`, `2024-01-15` y `2024-01-22`. El precio del viernes 5 se reporta con fecha lunes 8.
+>
+> Para graficar en un eje temporal esto es suficiente, pero **no conviene usar `date` como fecha de mercado exacta** en `weekly`/`monthly`. Con `frequency: "daily"` no aplica: ahí `date` y `price` son siempre del mismo día real.
 
 > **Nota de volumen:** con DCA diario sobre muchos años, el array puede crecer (del orden de miles de puntos). El frontend debe renderizar sin bloquear el hilo principal (p. ej. Recharts).
 
