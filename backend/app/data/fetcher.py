@@ -146,9 +146,7 @@ def _resolve_asset(ticker: str) -> dict[str, Any]:
     )
 
 
-def _download_full_series(
-    ticker: str, meta: dict[str, Any], *, _dca_frequency: str
-) -> pd.Series:
+def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
     today = date.today()
     if meta["type"] == "crypto":
         return binance.fetch(
@@ -162,8 +160,13 @@ def _download_full_series(
     raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
 
 
-def _cache_filename(ticker: str, meta: dict[str, Any], _dca_frequency: str) -> str:
-    """Crypto: ``TICKER.csv``. ETFs: siempre ``TIME_SERIES_WEEKLY_ADJUSTED`` → ``TICKER_wav.csv``."""
+def _cache_filename(ticker: str, meta: dict[str, Any]) -> str:
+    """
+    Crypto: ``TICKER.csv``. ETFs: siempre ``TIME_SERIES_WEEKLY_ADJUSTED`` → ``TICKER_wav.csv``.
+
+    No depende de la frecuencia DCA: se cachea la serie completa de la fuente y el
+    remuestreo se aplica en memoria al leerla.
+    """
     if meta["type"] == "etf":
         return f"{ticker}_wav.csv"
     return f"{ticker}.csv"
@@ -188,7 +191,7 @@ def get_prices(
 
     cache_dir = _cache_dir_path()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_name = _cache_filename(ticker, meta, dca_frequency)
+    cache_name = _cache_filename(ticker, meta)
     cache_path = cache_dir / cache_name
 
     with _get_lock(cache_name):
@@ -198,7 +201,7 @@ def get_prices(
             df = _read_cache_validated(cache_path)
 
         if df is None:
-            raw = _download_full_series(ticker, meta, _dca_frequency=dca_frequency)
+            raw = _download_full_series(ticker, meta)
             raw = raw.dropna()
             if raw.empty:
                 raise ValueError(

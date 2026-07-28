@@ -54,7 +54,7 @@ def _parse_ohlcv_block(
     symbol: str,
     ticker: str,
     series_label: str,
-    close_key: str = "4. close",
+    close_key: str,
 ) -> pd.Series:
     idx: list[pd.Timestamp] = []
     vals: list[float] = []
@@ -69,49 +69,6 @@ def _parse_ohlcv_block(
 
     s = pd.Series(vals, index=pd.DatetimeIndex(idx, name="Date"), name=ticker)
     return s.astype(float).sort_index()
-
-
-def fetch(*, symbol: str, ticker: str) -> pd.Series:
-    # No se usa para ETFs en producción. ETFs usan fetch_weekly_adjusted().
-    # TIME_SERIES_DAILY con outputsize=full requiere plan premium.
-    """
-    Precios de cierre diarios desde Alpha Vantage (TIME_SERIES_DAILY).
-
-    Sin parámetro ``outputsize`` la API usa su comportamiento por defecto (típicamente
-    serie reciente). Para historial completo con esta función hace falta pasar
-    ``outputsize=full`` explícitamente en ``params`` (plan premium).
-    """
-    key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
-    if not key:
-        raise ValueError(
-            "Falta la variable de entorno ALPHAVANTAGE_API_KEY. "
-            "Consigue una clave gratuita en https://www.alphavantage.co/support/#api-key "
-            "y configúrala en el entorno o en backend/.env."
-        )
-
-    params: dict[str, str] = {
-        "function": "TIME_SERIES_DAILY",
-        "symbol": symbol,
-        "apikey": key,
-    }
-    block_key = "Time Series (Daily)"
-
-    payload = _get_json_with_retry(params)
-    _raise_if_av_root_messages(payload)
-
-    if "Error Message" in payload:
-        raise ValueError(
-            f"Alpha Vantage rechazó la petición: {payload['Error Message']}"
-        )
-
-    series_block = payload.get(block_key)
-    if not isinstance(series_block, dict) or not series_block:
-        raise ValueError(
-            f"No se pudo leer {block_key!r} de Alpha Vantage para {symbol!r}. "
-            f"Claves en la respuesta: {list(payload.keys())!r}"
-        )
-
-    return _parse_ohlcv_block(series_block, symbol=symbol, ticker=ticker, series_label=block_key)
 
 
 def fetch_weekly_adjusted(*, symbol: str, ticker: str) -> pd.Series:
