@@ -17,6 +17,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.data.sources import alphavantage, binance
+from app.exceptions import (
+    InvalidDateRangeError,
+    NoDataAvailableError,
+    UnsupportedAssetTypeError,
+    UnsupportedTickerError,
+)
 
 ASSETS: list[dict[str, Any]] = [
     {
@@ -141,7 +147,7 @@ def _resolve_asset(ticker: str) -> dict[str, Any]:
         if a["ticker"] == ticker:
             return a
     allowed = ", ".join(sorted(x["ticker"] for x in ASSETS))
-    raise ValueError(
+    raise UnsupportedTickerError(
         f"Ticker no soportado: {ticker!r}. Use uno de los siguientes: {allowed}."
     )
 
@@ -157,7 +163,9 @@ def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
         )
     if meta["type"] == "etf":
         return alphavantage.fetch_weekly_adjusted(symbol=ticker, ticker=ticker)
-    raise ValueError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
+    raise UnsupportedAssetTypeError(
+        f"Tipo de activo no soportado para datos: {meta['type']!r}."
+    )
 
 
 def _cache_filename(ticker: str, meta: dict[str, Any]) -> str:
@@ -183,7 +191,7 @@ def get_prices(
     El resampleo a buckets DCA se aplica en memoria después de leer el caché.
     """
     if start > end:
-        raise ValueError(
+        raise InvalidDateRangeError(
             f"Rango de fechas inválido: start ({start}) es posterior a end ({end})."
         )
 
@@ -204,7 +212,7 @@ def get_prices(
             raw = _download_full_series(ticker, meta)
             raw = raw.dropna()
             if raw.empty:
-                raise ValueError(
+                raise NoDataAvailableError(
                     f"No se pudieron obtener datos para el ticker {ticker!r} "
                     "(respuesta vacía o rango inválido en la fuente)."
                 )
@@ -217,7 +225,9 @@ def get_prices(
 
     close = close.astype(float).sort_index().dropna()
     if close.empty:
-        raise ValueError(f"No hay serie de precios válida para el ticker {ticker!r}.")
+        raise NoDataAvailableError(
+            f"No hay serie de precios válida para el ticker {ticker!r}."
+        )
 
     ts_start = pd.Timestamp(start)
     ts_end = pd.Timestamp(end)
@@ -232,11 +242,11 @@ def get_prices(
 
     if filtered.empty:
         if window.empty:
-            raise ValueError(
+            raise NoDataAvailableError(
                 f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
                 f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
             )
-        raise ValueError(
+        raise NoDataAvailableError(
             f"No hay datos de precios para {ticker!r} en el rango {start} -> {end} "
             f"con frecuencia DCA {dca_frequency!r}: la serie queda vacía tras el "
             f"remuestreo. Prueba a ampliar el rango de fechas o usar frecuencia diaria."

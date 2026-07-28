@@ -18,44 +18,20 @@ router = APIRouter()
 _500_DETAIL = "Internal server error. Please try again."
 
 
-def _value_error_to_http(e: ValueError) -> HTTPException:
-    msg = str(e)
-    if "Alpha Vantage indica límite de frecuencia" in msg:
-        return HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=msg,
-        )
-    if "Alpha Vantage: con clave gratuita no está disponible" in msg:
-        return HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=msg,
-        )
-    lower = msg.lower()
-    if (
-        "no encontrado" in lower
-        or "ticker inválido" in lower
-        or "ticker no soportado" in lower
-    ):
-        return HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=msg,
-        )
-    needles_422 = (
-        "no disponible",
-        "rango",
-        "start_date",
-        "anterior",
-        "mínimo",
-    )
-    if any(n in lower for n in needles_422):
-        return HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=msg,
-        )
-    return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=msg,
-    )
+def _to_http(e: ValueError) -> HTTPException:
+    """
+    Traduce un error de dominio al status code que declara su propia clase.
+
+    Antes esto clasificaba buscando substrings en el mensaje ("rango", "mínimo",
+    "no disponible"). Era frágil —retocar el texto de un error movía su status
+    code— y además la mayoría de esas ramas no hacía nada: todas terminaban en
+    422, igual que el fallback.
+
+    Un `ValueError` sin tipar se trata como error de validación: es el mismo
+    comportamiento que tenía el fallback anterior.
+    """
+    http_status = getattr(e, "http_status", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    return HTTPException(status_code=http_status, detail=str(e))
 
 
 def _request_to_params(body: BacktestRequest) -> dict:
@@ -129,15 +105,12 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
             ticker, body.start_date, body.end_date, dca_frequency=body.frequency.value
         )
     except ValueError as e:
-        raise _value_error_to_http(e) from e
+        raise _to_http(e) from e
 
     try:
         strategy = get_strategy(body.strategy.value)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e),
-        ) from e
+        raise _to_http(e) from e
 
     try:
         params = _request_to_params(body)

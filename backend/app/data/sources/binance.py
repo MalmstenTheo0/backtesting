@@ -6,6 +6,8 @@ from datetime import date, datetime, timezone
 import pandas as pd
 import requests
 
+from app.exceptions import UpstreamResponseError
+
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
 DAY_MS = 86_400_000
 MAX_RETRIES = 3
@@ -31,11 +33,11 @@ def _get_json_with_retry(params: dict) -> list:
             r.raise_for_status()
             data = r.json()
             if isinstance(data, dict) and "code" in data:
-                raise ValueError(
+                raise UpstreamResponseError(
                     f"Binance API error: {data.get('msg', data)!r} (code={data.get('code')})"
                 )
             if not isinstance(data, list):
-                raise ValueError(f"Respuesta inesperada de Binance: {type(data).__name__}")
+                raise UpstreamResponseError(f"Respuesta inesperada de Binance: {type(data).__name__}")
             return data
         except ValueError:
             raise

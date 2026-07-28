@@ -7,6 +7,12 @@ from typing import Any
 import pandas as pd
 import requests
 
+from app.exceptions import (
+    UpstreamConfigError,
+    UpstreamRateLimitError,
+    UpstreamResponseError,
+)
+
 ALPHAVANTAGE_URL = "https://www.alphavantage.co/query"
 MAX_RETRIES = 3
 
@@ -30,7 +36,7 @@ def _raise_if_av_root_messages(payload: Any) -> None:
     if not isinstance(payload, dict):
         return
     if "Note" in payload:
-        raise ValueError(
+        raise UpstreamRateLimitError(
             "Alpha Vantage indica límite de frecuencia (p. ej. 5 peticiones/minuto en el plan gratuito). "
             "Espera unos minutos o revisa tu cuota en alphavantage.co."
         )
@@ -38,11 +44,11 @@ def _raise_if_av_root_messages(payload: Any) -> None:
         info = str(payload["Information"])
         low = info.lower()
         if "premium" in low or "outputsize=full" in low or ("output size" in low and "full" in low):
-            raise ValueError(
+            raise UpstreamConfigError(
                 "Alpha Vantage: respuesta de plan premium requerida. "
                 "Verificá que ALPHAVANTAGE_API_KEY en .env sea válida y activa."
             )
-        raise ValueError(
+        raise UpstreamResponseError(
             "Alpha Vantage devolvió un mensaje informativo (no serie de precios). "
             f"Detalle: {info[:400]}"
         )
@@ -65,7 +71,7 @@ def _parse_ohlcv_block(
         vals.append(float(row[close_key]))
 
     if not vals:
-        raise ValueError(f"Serie vacía de Alpha Vantage ({series_label}) para {symbol!r}.")
+        raise UpstreamResponseError(f"Serie vacía de Alpha Vantage ({series_label}) para {symbol!r}.")
 
     s = pd.Series(vals, index=pd.DatetimeIndex(idx, name="Date"), name=ticker)
     return s.astype(float).sort_index()
@@ -79,7 +85,7 @@ def fetch_weekly_adjusted(*, symbol: str, ticker: str) -> pd.Series:
     """
     key = (os.getenv("ALPHAVANTAGE_API_KEY") or "").strip()
     if not key:
-        raise ValueError(
+        raise UpstreamConfigError(
             "Falta la variable de entorno ALPHAVANTAGE_API_KEY. "
             "Consigue una clave gratuita en https://www.alphavantage.co/support/#api-key "
             "y configúrala en el entorno o en backend/.env."
@@ -96,13 +102,13 @@ def fetch_weekly_adjusted(*, symbol: str, ticker: str) -> pd.Series:
     _raise_if_av_root_messages(payload)
 
     if "Error Message" in payload:
-        raise ValueError(
+        raise UpstreamResponseError(
             f"Alpha Vantage rechazó la petición: {payload['Error Message']}"
         )
 
     series_block = payload.get(block_key)
     if not isinstance(series_block, dict) or not series_block:
-        raise ValueError(
+        raise UpstreamResponseError(
             f"No se pudo leer {block_key!r} de Alpha Vantage para {symbol!r}. "
             f"Claves en la respuesta: {list(payload.keys())!r}"
         )
