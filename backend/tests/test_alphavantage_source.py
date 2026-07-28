@@ -56,9 +56,7 @@ def sin_esperas(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(time, "sleep", lambda _s: None)
 
 
-def responder_con(
-    monkeypatch: pytest.MonkeyPatch, *respuestas: Any
-) -> list[dict[str, Any]]:
+def responder_con(monkeypatch: pytest.MonkeyPatch, *respuestas: Any) -> list[dict[str, Any]]:
     pendientes = list(respuestas)
     llamadas: list[dict[str, Any]] = []
 
@@ -101,9 +99,7 @@ class TestParseo:
             "2024-01-12",
         ]
 
-    def test_la_serie_lleva_el_nombre_del_ticker(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_la_serie_lleva_el_nombre_del_ticker(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, payload_semanal({"2024-01-05": 470.5}))
 
         serie = alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
@@ -135,25 +131,19 @@ class TestParseo:
 
 
 class TestClaveDeApi:
-    def test_sin_clave_falla_con_instrucciones(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sin_clave_falla_con_instrucciones(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
 
         with pytest.raises(ValueError, match="Falta la variable de entorno"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
-    def test_una_clave_en_blanco_cuenta_como_ausente(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_una_clave_en_blanco_cuenta_como_ausente(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "   ")
 
         with pytest.raises(ValueError, match="Falta la variable de entorno"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
-    def test_no_sale_a_la_red_si_falta_la_clave(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_sale_a_la_red_si_falta_la_clave(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
         llamadas = responder_con(monkeypatch)
 
@@ -164,9 +154,7 @@ class TestClaveDeApi:
 
 
 class TestMensajesDeLaApi:
-    def test_note_es_limite_de_frecuencia(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_note_es_limite_de_frecuencia(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Es el unico error que la capa HTTP traduce a 429.
         responder_con(monkeypatch, {"Note": "Thank you for using Alpha Vantage!"})
 
@@ -197,9 +185,7 @@ class TestMensajesDeLaApi:
         with pytest.raises(ValueError, match="mensaje informativo"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
-    def test_error_message_es_rechazo_de_la_peticion(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_error_message_es_rechazo_de_la_peticion(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, {"Error Message": "Invalid API call."})
 
         with pytest.raises(ValueError, match="rechazó la petición"):
@@ -213,9 +199,7 @@ class TestRespuestasIlegibles:
         with pytest.raises(ValueError, match="No se pudo leer"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
-    def test_el_error_enumera_las_claves_recibidas(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_el_error_enumera_las_claves_recibidas(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Sin esto, depurar una respuesta rara de la API es a ciegas.
         responder_con(monkeypatch, {"Meta Data": {}})
 
@@ -228,21 +212,15 @@ class TestRespuestasIlegibles:
         with pytest.raises(ValueError, match="No se pudo leer"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
-    def test_bloque_con_filas_pero_todas_ilegibles(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        responder_con(
-            monkeypatch, {BLOQUE_SEMANAL: {"2024-01-05": {"1. open": "1.0"}}}
-        )
+    def test_bloque_con_filas_pero_todas_ilegibles(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        responder_con(monkeypatch, {BLOQUE_SEMANAL: {"2024-01-05": {"1. open": "1.0"}}})
 
         with pytest.raises(ValueError, match="Serie vacía"):
             alphavantage.fetch_weekly_adjusted(symbol="SPY", ticker="SPY")
 
 
 class TestReintentos:
-    def test_reintenta_ante_un_fallo_de_red(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_reintenta_ante_un_fallo_de_red(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas = responder_con(
             monkeypatch,
             requests.ConnectionError("timeout"),
@@ -254,9 +232,7 @@ class TestReintentos:
         assert len(llamadas) == 2
         assert serie.tolist() == [470.5]
 
-    def test_se_rinde_despues_de_max_retries(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_se_rinde_despues_de_max_retries(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas = responder_con(
             monkeypatch,
             *[requests.ConnectionError("timeout")] * alphavantage.MAX_RETRIES,

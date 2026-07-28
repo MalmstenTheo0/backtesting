@@ -59,8 +59,7 @@ class Strategy(ABC):
     """
 
     @abstractmethod
-    def run(self, prices: pd.Series, params: dict) -> BacktestResult:
-        ...
+    def run(self, prices: pd.Series, params: dict) -> BacktestResult: ...
 
     def _calculate_lump_sum(
         self,
@@ -91,11 +90,7 @@ class Strategy(ABC):
         final_value = units * last_price
         return_pct = ((final_value - total_capital) / total_capital) * 100
         years = (prices.index[-1] - prices.index[0]).days / 365.25
-        cagr = (
-            ((final_value / total_capital) ** (1 / years) - 1) * 100
-            if years > 0
-            else 0
-        )
+        cagr = ((final_value / total_capital) ** (1 / years) - 1) * 100 if years > 0 else 0
 
         return LumpSumComparison(
             capital=round(total_capital, 2),
@@ -116,14 +111,10 @@ class Strategy(ABC):
             # Primer día hábil de cada semana ISO
             # (evita perder semanas si el lunes no está en el índice).
             ic = prices.index.isocalendar()
-            first_per_week = prices.groupby(
-                [ic["year"], ic["week"]], sort=True
-            ).head(1)
+            first_per_week = prices.groupby([ic["year"], ic["week"]], sort=True).head(1)
             return first_per_week.index
         if frequency == "monthly":
             # Primer día hábil de cada mes calendario (evita perder meses si el día 1 no cotiza).
-            first_per_month = prices.groupby(
-                prices.index.to_period("M"), sort=True
-            ).head(1)
+            first_per_month = prices.groupby(prices.index.to_period("M"), sort=True).head(1)
             return first_per_month.index
         raise ValueError(f"Frecuencia no soportada: {frequency}")

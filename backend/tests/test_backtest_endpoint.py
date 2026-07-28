@@ -64,9 +64,7 @@ def client() -> TestClient:
 def precios_mockeados(monkeypatch: pytest.MonkeyPatch) -> pd.Series:
     """Por defecto `get_prices` devuelve una serie sintética y no toca datos reales."""
     serie = serie_de_precios()
-    monkeypatch.setattr(
-        backtest_endpoint, "get_prices", lambda *args, **kwargs: serie
-    )
+    monkeypatch.setattr(backtest_endpoint, "get_prices", lambda *args, **kwargs: serie)
     return serie
 
 
@@ -132,9 +130,7 @@ class TestHappyPath:
             "is_buy",
         }
 
-    def test_el_capital_acumulado_se_serializa_como_invested(
-        self, client: TestClient
-    ) -> None:
+    def test_el_capital_acumulado_se_serializa_como_invested(self, client: TestClient) -> None:
         # El dataclass interno lo llama `cumulative_invested`; el JSON expone `invested`.
         chart = client.post(BACKTEST_URL, json=request_body()).json()["chart_data"]
 
@@ -192,20 +188,14 @@ class TestValidacionDelBody:
     def test_etf_con_frecuencia_diaria_no_esta_disponible(
         self, client: TestClient, ticker: str
     ) -> None:
-        respuesta = client.post(
-            BACKTEST_URL, json=request_body(ticker=ticker, frequency="daily")
-        )
+        respuesta = client.post(BACKTEST_URL, json=request_body(ticker=ticker, frequency="daily"))
 
         assert respuesta.status_code == 422
         assert "frecuencia diaria no está disponible" in respuesta.text
 
     @pytest.mark.parametrize("frequency", ["weekly", "monthly"])
-    def test_un_etf_si_acepta_semanal_y_mensual(
-        self, client: TestClient, frequency: str
-    ) -> None:
-        respuesta = client.post(
-            BACKTEST_URL, json=request_body(ticker="SPY", frequency=frequency)
-        )
+    def test_un_etf_si_acepta_semanal_y_mensual(self, client: TestClient, frequency: str) -> None:
+        respuesta = client.post(BACKTEST_URL, json=request_body(ticker="SPY", frequency=frequency))
 
         assert respuesta.status_code == 200
 
@@ -221,18 +211,8 @@ class TestValidacionDelBody:
         assert respuesta.status_code == 422
 
     def test_comision_fuera_de_rango(self, client: TestClient) -> None:
-        assert (
-            client.post(
-                BACKTEST_URL, json=request_body(commission_pct=101.0)
-            ).status_code
-            == 422
-        )
-        assert (
-            client.post(
-                BACKTEST_URL, json=request_body(commission_pct=-1.0)
-            ).status_code
-            == 422
-        )
+        assert client.post(BACKTEST_URL, json=request_body(commission_pct=101.0)).status_code == 422
+        assert client.post(BACKTEST_URL, json=request_body(commission_pct=-1.0)).status_code == 422
 
     def test_frecuencia_inexistente(self, client: TestClient) -> None:
         respuesta = client.post(BACKTEST_URL, json=request_body(frequency="hourly"))
@@ -256,9 +236,7 @@ class TestEstrategiasReservadas:
         assert respuesta.status_code == 422
         assert "Estrategia desconocida" in respuesta.json()["detail"]
 
-    def test_una_estrategia_fuera_del_enum_la_rechaza_pydantic(
-        self, client: TestClient
-    ) -> None:
+    def test_una_estrategia_fuera_del_enum_la_rechaza_pydantic(self, client: TestClient) -> None:
         respuesta = client.post(BACKTEST_URL, json=request_body(strategy="martingala"))
 
         assert respuesta.status_code == 422
@@ -444,9 +422,7 @@ class TestErroresInesperados:
             def run(self, prices: pd.Series, params: dict) -> None:
                 raise RuntimeError("detalle interno con info sensible")
 
-        monkeypatch.setattr(
-            backtest_endpoint, "get_strategy", lambda name: EstrategiaRota()
-        )
+        monkeypatch.setattr(backtest_endpoint, "get_strategy", lambda name: EstrategiaRota())
 
         respuesta = client.post(BACKTEST_URL, json=request_body())
 
@@ -459,9 +435,7 @@ class TestErroresInesperados:
             def run(self, prices: pd.Series, params: dict) -> None:
                 raise RuntimeError("detalle interno con info sensible")
 
-        monkeypatch.setattr(
-            backtest_endpoint, "get_strategy", lambda name: EstrategiaRota()
-        )
+        monkeypatch.setattr(backtest_endpoint, "get_strategy", lambda name: EstrategiaRota())
 
         respuesta = client.post(BACKTEST_URL, json=request_body())
 
@@ -500,9 +474,7 @@ class TestOtrosEndpoints:
         assert btc["type"] == "crypto"
         assert btc["data_since"] == "2017-08-17"
 
-    def test_assets_no_expone_el_simbolo_interno_de_binance(
-        self, client: TestClient
-    ) -> None:
+    def test_assets_no_expone_el_simbolo_interno_de_binance(self, client: TestClient) -> None:
         activos = client.get("/api/v1/assets").json()["assets"]
 
         assert all("binance_symbol" not in a for a in activos)

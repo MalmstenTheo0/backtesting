@@ -19,9 +19,7 @@ class DCAStrategy(Strategy):
         if prices.empty:
             # Sin esta guarda pandas levanta IndexError desde `prices.iloc[-1]`,
             # que la capa HTTP traduce a un 500 opaco.
-            raise ValueError(
-                "No se puede simular sobre una serie de precios vacía."
-            )
+            raise ValueError("No se puede simular sobre una serie de precios vacía.")
 
         amount = params["amount_per_period"]
         frequency = params["frequency"]
@@ -69,9 +67,7 @@ class DCAStrategy(Strategy):
 
         final_value = total_units * prices.iloc[-1]
         absolute_return = final_value - total_invested
-        return_pct = (
-            (absolute_return / total_invested * 100) if total_invested > 0 else 0
-        )
+        return_pct = (absolute_return / total_invested * 100) if total_invested > 0 else 0
         years = (prices.index[-1] - prices.index[0]).days / 365.25
         cagr = (
             ((final_value / total_invested) ** (1 / years) - 1) * 100

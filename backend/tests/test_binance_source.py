@@ -31,10 +31,7 @@ def kline(fecha: str, close: float) -> list[Any]:
 
 def klines_diarias(inicio: str, cantidad: int, *, precio_base: float = 100.0) -> list[list[Any]]:
     d0 = date.fromisoformat(inicio)
-    return [
-        kline((d0 + timedelta(days=i)).isoformat(), precio_base + i)
-        for i in range(cantidad)
-    ]
+    return [kline((d0 + timedelta(days=i)).isoformat(), precio_base + i) for i in range(cantidad)]
 
 
 class FakeResponse:
@@ -54,9 +51,7 @@ def sin_esperas(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(time, "sleep", lambda _s: None)
 
 
-def responder_con(
-    monkeypatch: pytest.MonkeyPatch, *respuestas: Any
-) -> list[dict[str, Any]]:
+def responder_con(monkeypatch: pytest.MonkeyPatch, *respuestas: Any) -> list[dict[str, Any]]:
     """Encola respuestas para llamadas sucesivas y registra los params de cada una."""
     pendientes = list(respuestas)
     llamadas: list[dict[str, Any]] = []
@@ -109,9 +104,7 @@ class TestParseo:
         assert serie.index.tz is None
         assert serie.index.name == "Date"
 
-    def test_la_serie_lleva_el_nombre_del_ticker(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_la_serie_lleva_el_nombre_del_ticker(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, [kline("2024-01-01", 100.0)])
 
         serie = binance.fetch(
@@ -215,9 +208,7 @@ class TestPaginado:
 
         assert len(llamadas) == 1
 
-    def test_avanza_el_cursor_entre_paginas(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_avanza_el_cursor_entre_paginas(self, monkeypatch: pytest.MonkeyPatch) -> None:
         primera = klines_diarias("2020-01-01", 1000)
         llamadas = responder_con(monkeypatch, primera, [])
 
@@ -249,9 +240,7 @@ class TestPaginado:
 
 
 class TestSeriesVacias:
-    def test_sin_velas_devuelve_una_serie_vacia(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sin_velas_devuelve_una_serie_vacia(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, [])
 
         serie = binance.fetch(
@@ -264,9 +253,7 @@ class TestSeriesVacias:
         assert serie.empty
         assert serie.name == "BTC-USD"
 
-    def test_rango_invertido_no_llega_a_pedir_nada(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rango_invertido_no_llega_a_pedir_nada(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas = responder_con(monkeypatch)
 
         serie = binance.fetch(
@@ -281,9 +268,7 @@ class TestSeriesVacias:
 
 
 class TestErroresDeLaApi:
-    def test_error_declarado_por_binance(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_error_declarado_por_binance(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, {"code": -1121, "msg": "Invalid symbol."})
 
         with pytest.raises(ValueError, match="Binance API error"):
@@ -294,9 +279,7 @@ class TestErroresDeLaApi:
                 end=date(2024, 1, 2),
             )
 
-    def test_respuesta_de_tipo_inesperado(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_respuesta_de_tipo_inesperado(self, monkeypatch: pytest.MonkeyPatch) -> None:
         responder_con(monkeypatch, "esto deberia ser una lista")
 
         with pytest.raises(ValueError, match="Respuesta inesperada de Binance"):
@@ -307,9 +290,7 @@ class TestErroresDeLaApi:
                 end=date(2024, 1, 2),
             )
 
-    def test_un_error_de_negocio_no_se_reintenta(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_un_error_de_negocio_no_se_reintenta(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Reintentar un simbolo invalido no lo va a arreglar: se corta enseguida.
         llamadas = responder_con(monkeypatch, {"code": -1121, "msg": "Invalid symbol."})
 
@@ -325,9 +306,7 @@ class TestErroresDeLaApi:
 
 
 class TestReintentos:
-    def test_reintenta_ante_un_fallo_de_red_y_sigue(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_reintenta_ante_un_fallo_de_red_y_sigue(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas = responder_con(
             monkeypatch,
             requests.ConnectionError("timeout"),
@@ -344,9 +323,7 @@ class TestReintentos:
         assert len(llamadas) == 2
         assert serie.tolist() == [100.0]
 
-    def test_se_rinde_despues_de_max_retries(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_se_rinde_despues_de_max_retries(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas = responder_con(
             monkeypatch,
             *[requests.ConnectionError("timeout")] * binance.MAX_RETRIES,

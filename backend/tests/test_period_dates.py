@@ -51,9 +51,7 @@ class TestFrecuenciaSemanal:
             "2024-01-15",  # semana ISO 3 - lunes
         ]
 
-    def test_agrupa_por_semana_iso_no_por_ano_calendario(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_agrupa_por_semana_iso_no_por_ano_calendario(self, strategy: DCAStrategy) -> None:
         # El caso borde del calendario ISO: 2019-12-30 y 2019-12-31 pertenecen a la
         # semana 1 de 2020, no a la última de 2019. Agrupar por (año, semana) del
         # calendario común partiría mal este tramo.
@@ -68,9 +66,7 @@ class TestFrecuenciaSemanal:
             "2020-01-06",  # ISO 2020-W02
         ]
 
-    def test_no_inventa_compras_en_semanas_sin_datos(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_no_inventa_compras_en_semanas_sin_datos(self, strategy: DCAStrategy) -> None:
         # Hueco de dos semanas: solo hay compra en las semanas que tienen precio.
         prices = price_series(
             ["2024-01-01", "2024-01-02", "2024-01-22", "2024-01-23"],
@@ -98,9 +94,7 @@ class TestFrecuenciaMensual:
             "2024-03-04",
         ]
 
-    def test_distingue_el_mismo_mes_de_anos_distintos(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_distingue_el_mismo_mes_de_anos_distintos(self, strategy: DCAStrategy) -> None:
         prices = price_series(
             ["2023-12-05", "2023-12-20", "2024-01-08", "2024-12-03"],
             [1.0, 2.0, 3.0, 4.0],

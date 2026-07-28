@@ -112,9 +112,7 @@ def _cache_needs_update(cache_path: Path, ticker_type: str) -> bool:
         return True
     try:
         last_date = (
-            pd.read_csv(cache_path, usecols=["Date"], parse_dates=["Date"])
-            .iloc[-1]["Date"]
-            .date()
+            pd.read_csv(cache_path, usecols=["Date"], parse_dates=["Date"]).iloc[-1]["Date"].date()
         )
     except Exception:
         return True
@@ -165,9 +163,7 @@ def _download_full_series(ticker: str, meta: dict[str, Any]) -> pd.Series:
         )
     if meta["type"] == "etf":
         return alphavantage.fetch_weekly_adjusted(symbol=ticker, ticker=ticker)
-    raise UnsupportedAssetTypeError(
-        f"Tipo de activo no soportado para datos: {meta['type']!r}."
-    )
+    raise UnsupportedAssetTypeError(f"Tipo de activo no soportado para datos: {meta['type']!r}.")
 
 
 def _cache_filename(ticker: str, meta: dict[str, Any]) -> str:
@@ -182,9 +178,7 @@ def _cache_filename(ticker: str, meta: dict[str, Any]) -> str:
     return f"{ticker}.csv"
 
 
-def get_prices(
-    ticker: str, start: date, end: date, *, dca_frequency: str = "daily"
-) -> pd.Series:
+def get_prices(ticker: str, start: date, end: date, *, dca_frequency: str = "daily") -> pd.Series:
     """
     Serie de cierre en el rango pedido.
 
@@ -218,18 +212,14 @@ def get_prices(
                     f"No se pudieron obtener datos para el ticker {ticker!r} "
                     "(respuesta vacía o rango inválido en la fuente)."
                 )
-            raw.rename_axis("Date").reset_index(name="Close").to_csv(
-                cache_path, index=False
-            )
+            raw.rename_axis("Date").reset_index(name="Close").to_csv(cache_path, index=False)
             df = pd.read_csv(cache_path, index_col="Date", parse_dates=True)
 
     close = df["Close"].rename(ticker)
 
     close = close.astype(float).sort_index().dropna()
     if close.empty:
-        raise NoDataAvailableError(
-            f"No hay serie de precios válida para el ticker {ticker!r}."
-        )
+        raise NoDataAvailableError(f"No hay serie de precios válida para el ticker {ticker!r}.")
 
     ts_start = pd.Timestamp(start)
     ts_end = pd.Timestamp(end)

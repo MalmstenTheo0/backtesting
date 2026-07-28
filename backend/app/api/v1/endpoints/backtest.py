@@ -100,8 +100,7 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"Ticker no permitido: {body.ticker!r}. "
-                "Debe estar en la lista curada de activos."
+                f"Ticker no permitido: {body.ticker!r}. Debe estar en la lista curada de activos."
             ),
         )
 
