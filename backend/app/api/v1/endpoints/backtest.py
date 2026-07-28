@@ -5,6 +5,8 @@ from app.data.fetcher import get_prices
 from app.models.request import BacktestRequest
 from app.models.response import (
     BacktestMetrics as BacktestMetricsResponse,
+)
+from app.models.response import (
     BacktestResponse,
     BacktestSummary,
     ChartPoint,
@@ -97,7 +99,10 @@ def run_backtest(body: BacktestRequest) -> BacktestResponse:
     if ticker not in CURATED_TICKERS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Ticker no permitido: {body.ticker!r}. Debe estar en la lista curada de activos.",
+            detail=(
+                f"Ticker no permitido: {body.ticker!r}. "
+                "Debe estar en la lista curada de activos."
+            ),
         )
 
     try:

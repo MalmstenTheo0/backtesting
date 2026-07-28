@@ -1,5 +1,5 @@
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -8,7 +8,7 @@ class HealthResponse(BaseModel):
     status: str = "ok"
 
 
-class AssetType(str, Enum):
+class AssetType(StrEnum):
     crypto = "crypto"
     etf = "etf"
     stock = "stock"

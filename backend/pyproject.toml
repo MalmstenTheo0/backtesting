@@ -6,3 +6,23 @@
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--strict-markers --strict-config"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["venv", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort: orden de imports
+    "UP",  # pyupgrade: sintaxis moderna de Python
+    "B",   # flake8-bugbear: trampas comunes
+    "SIM", # flake8-simplify
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests acceden a helpers privados a proposito (_get_period_dates,
+# _read_cache_validated): son parte de lo que se quiere fijar.
+"tests/*" = ["SLF001"]

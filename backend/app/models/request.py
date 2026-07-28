@@ -1,19 +1,19 @@
 from datetime import date
-from enum import Enum
+from enum import StrEnum
+from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
-from typing_extensions import Self
 
 from app.data.fetcher import ASSETS
 
 
-class Frequency(str, Enum):
+class Frequency(StrEnum):
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"
 
 
-class StrategyName(str, Enum):
+class StrategyName(StrEnum):
     dca = "dca"
     dca_weighted = "dca_weighted"
     value_averaging = "value_averaging"

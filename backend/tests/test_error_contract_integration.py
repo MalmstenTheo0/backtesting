@@ -13,7 +13,7 @@ que inyecta la excepción ya clasificada no podría demostrar eso.
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -78,7 +78,7 @@ def fuente_responde(monkeypatch: pytest.MonkeyPatch):
 
 def kline(fecha: str, close: float) -> list[Any]:
     d = date.fromisoformat(fecha)
-    ms = int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000)
+    ms = int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp() * 1000)
     return [ms, "0", "0", "0", str(close), "0"]
 
 

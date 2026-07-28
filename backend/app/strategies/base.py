@@ -113,7 +113,8 @@ class Strategy(ABC):
         if frequency == "daily":
             return prices.index
         if frequency == "weekly":
-            # Primer día hábil de cada semana ISO (evita perder semanas si el lunes no está en el índice).
+            # Primer día hábil de cada semana ISO
+            # (evita perder semanas si el lunes no está en el índice).
             ic = prices.index.isocalendar()
             first_per_week = prices.groupby(
                 [ic["year"], ic["week"]], sort=True

@@ -14,8 +14,6 @@ from typing import Any
 import pandas as pd
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from app.data.sources import alphavantage, binance
 from app.exceptions import (
     InvalidDateRangeError,
@@ -23,6 +21,10 @@ from app.exceptions import (
     UnsupportedAssetTypeError,
     UnsupportedTickerError,
 )
+
+# Las fuentes leen ALPHAVANTAGE_API_KEY en tiempo de llamada, no de import, así que
+# alcanza con cargar el .env acá y los imports pueden quedar arriba.
+load_dotenv()
 
 ASSETS: list[dict[str, Any]] = [
     {
