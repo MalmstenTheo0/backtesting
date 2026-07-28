@@ -178,7 +178,7 @@ Los datos de precios se guardan bajo `backend/app/data/cache/` (ruta configurabl
 
 **Cripto:** un CSV por ticker, nombre `{TICKER}.csv` (ej. `BTC-USD.csv`).
 
-**ETFs:** un CSV por ticker con sufijo `_wav` (de *weekly adjusted*), nombre `{TICKER}_wav.csv` (ej. `SPY_wav.csv`). La descarga usa Alpha Vantage `TIME_SERIES_WEEKLY_ADJUSTED`; el backtest **semanal** o **mensual** remuestrea esa serie en memoria (`get_prices` en `fetcher.py`).
+**ETFs:** un CSV por ticker con sufijo `_wav` (de *weekly adjusted*), nombre `{TICKER}_wav.csv` (ej. `SPY_wav.csv`). La descarga usa Alpha Vantage `TIME_SERIES_WEEKLY_ADJUSTED`; `get_prices` en `fetcher.py` recorta esa serie al rango pedido y la entrega sin remuestrear.
 
 Ejemplo de layout:
 
@@ -275,7 +275,7 @@ npm run lint
 
 El plan gratuito tiene límites de peticiones (p. ej. por minuto y por día). Con el caché CSV y un solo endpoint por ETF (`TIME_SERIES_WEEKLY_ADJUSTED`) suele alcanzar para desarrollo. Si ves el mensaje de *rate limit*, esperá unos minutos o revisá la cuota en alphavantage.co.
 
-Los ETFs **no** usan DCA diario en esta app (el request ETF + `daily` se rechaza con **422**). Para DCA semanal o mensual, la serie semanal ajustada se remuestrea desde el CSV en memoria.
+Los ETFs **no** usan DCA diario en esta app (el request ETF + `daily` se rechaza con **422**). Para DCA semanal o mensual se usa la serie semanal ajustada tal cual, y la estrategia compra el primer día con cotización de cada período.
 
 ### Falta `ALPHAVANTAGE_API_KEY` al pedir un ETF
 

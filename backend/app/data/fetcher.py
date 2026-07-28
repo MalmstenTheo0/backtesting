@@ -171,20 +171,26 @@ def _cache_filename(ticker: str, meta: dict[str, Any]) -> str:
     Crypto: ``TICKER.csv``. ETFs: siempre ``TIME_SERIES_WEEKLY_ADJUSTED`` → ``TICKER_wav.csv``.
 
     No depende de la frecuencia DCA: se cachea la serie completa de la fuente y el
-    remuestreo se aplica en memoria al leerla.
+    rango pedido se recorta en memoria al leerla.
     """
     if meta["type"] == "etf":
         return f"{ticker}_wav.csv"
     return f"{ticker}.csv"
 
 
-def get_prices(ticker: str, start: date, end: date, *, dca_frequency: str = "daily") -> pd.Series:
+def get_prices(ticker: str, start: date, end: date) -> pd.Series:
     """
-    Serie de cierre en el rango pedido.
+    Serie de cierre en el rango pedido, con la densidad nativa de la fuente.
 
     Crypto: Binance (velas diarias). ETFs: Alpha Vantage ``TIME_SERIES_WEEKLY_ADJUSTED``
     (plan gratuito, historial largo, cierre ajustado). Caché CSV (Date, Close).
-    El resampleo a buckets DCA se aplica en memoria después de leer el caché.
+
+    **No se remuestrea por frecuencia DCA.** Elegir en qué fechas se compra es
+    responsabilidad de la estrategia (``Strategy._get_period_dates``), que agrupa por
+    período y se queda con el primer día con cotización de cada uno. Antes esto se hacía
+    dos veces: acá con ``resample`` y de nuevo en la estrategia. El remuestreo, además,
+    etiquetaba cada punto con el borde del bucket (el lunes que cierra la semana, el
+    día 1 del mes), así que devolvía fechas que podían no ser días de mercado.
     """
     if start > end:
         raise InvalidDateRangeError(
@@ -225,23 +231,10 @@ def get_prices(ticker: str, start: date, end: date, *, dca_frequency: str = "dai
     ts_end = pd.Timestamp(end)
     window = close.loc[ts_start:ts_end]
 
-    if dca_frequency == "weekly":
-        filtered = window.resample("W-MON").first().dropna()
-    elif dca_frequency == "monthly":
-        filtered = window.resample("MS").first().dropna()
-    else:
-        filtered = window
-
-    if filtered.empty:
-        if window.empty:
-            raise NoDataAvailableError(
-                f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
-                f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
-            )
+    if window.empty:
         raise NoDataAvailableError(
-            f"No hay datos de precios para {ticker!r} en el rango {start} -> {end} "
-            f"con frecuencia DCA {dca_frequency!r}: la serie queda vacía tras el "
-            f"remuestreo. Prueba a ampliar el rango de fechas o usar frecuencia diaria."
+            f"No hay datos de precios para {ticker!r} en el rango {start} -> {end}. "
+            f"Datos disponibles: {close.index.min().date()} -> {close.index.max().date()}."
         )
 
-    return filtered.astype(float).rename(ticker)
+    return window.astype(float).rename(ticker)

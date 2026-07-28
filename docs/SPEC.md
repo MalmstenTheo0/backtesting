@@ -6,7 +6,7 @@ Una web app SPA que permite a cualquier persona simular estrategias de inversió
 
 El foco es en **claridad y honestidad**: mostrar qué hubiera pasado realmente, incluyendo comisiones, comparación con alternativas simples (lump sum), y métricas estándar del mundo financiero.
 
-Los precios del backtest provienen de **Binance** (cripto, velas diarias) y **Alpha Vantage** (ETFs, serie semanal ajustada remuestreada según la frecuencia DCA), con **caché CSV** en el servidor.
+Los precios del backtest provienen de **Binance** (cripto, velas diarias) y **Alpha Vantage** (ETFs, serie semanal ajustada), con **caché CSV** en el servidor. La frecuencia DCA determina en qué fechas se compra, no la densidad de la serie.
 
 ---
 

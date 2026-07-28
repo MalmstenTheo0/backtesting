@@ -96,12 +96,7 @@ class TestCacheFresco:
             semanas_hasta_hoy(precio=1.0, ultimo_dia=date.today() - timedelta(days=3)),
         )
 
-        fetcher.get_prices(
-            "SPY",
-            date.today() - timedelta(days=120),
-            date.today(),
-            dca_frequency="weekly",
-        )
+        fetcher.get_prices("SPY", date.today() - timedelta(days=120), date.today())
 
         assert alphavantage_spy.calls == 0
 
@@ -159,12 +154,7 @@ class TestInvalidacionDeCache:
             semanas_hasta_hoy(precio=1.0, ultimo_dia=date.today() - timedelta(days=10)),
         )
 
-        fetcher.get_prices(
-            "SPY",
-            date.today() - timedelta(days=120),
-            date.today(),
-            dca_frequency="weekly",
-        )
+        fetcher.get_prices("SPY", date.today() - timedelta(days=120), date.today())
 
         assert alphavantage_spy.calls == 1
 
@@ -238,28 +228,86 @@ class TestNombreDeArchivoDeCache:
         assert [p.name for p in cache_dir.iterdir()] == ["BTC-USD.csv"]
 
     def test_los_etf_usan_el_sufijo_wav(self, cache_dir: Path, alphavantage_spy: SourceSpy) -> None:
-        # Siempre TIME_SERIES_WEEKLY_ADJUSTED, independientemente de la frecuencia DCA.
-        fetcher.get_prices(
-            "SPY",
-            date.today() - timedelta(days=120),
-            date.today(),
-            dca_frequency="monthly",
-        )
+        # Siempre TIME_SERIES_WEEKLY_ADJUSTED: el plan gratuito no da diario.
+        fetcher.get_prices("SPY", date.today() - timedelta(days=120), date.today())
 
         assert [p.name for p in cache_dir.iterdir()] == ["SPY_wav.csv"]
 
-    def test_la_frecuencia_dca_no_cambia_el_archivo_de_cache(
+    def test_llamadas_repetidas_reutilizan_el_mismo_archivo(
         self, cache_dir: Path, alphavantage_spy: SourceSpy
     ) -> None:
-        for frecuencia in ("weekly", "monthly"):
-            fetcher.get_prices(
-                "SPY",
-                date.today() - timedelta(days=120),
-                date.today(),
-                dca_frequency=frecuencia,
-            )
+        # Se cachea la serie completa una sola vez; los distintos rangos se
+        # recortan en memoria sobre ese mismo archivo.
+        for dias in (120, 300, 700):
+            fetcher.get_prices("SPY", date.today() - timedelta(days=dias), date.today())
 
         assert [p.name for p in cache_dir.iterdir()] == ["SPY_wav.csv"]
+        assert alphavantage_spy.calls == 1
+
+
+class TestSinRemuestreo:
+    """
+    `get_prices` entrega la serie con la densidad nativa de la fuente.
+
+    Antes remuestreaba segun la frecuencia DCA, lo que producia fechas sinteticas:
+    `resample("W-MON")` etiqueta cada semana con el lunes que la cierra, asi que el
+    cierre de un viernes se reportaba con fecha del lunes siguiente. Elegir las fechas
+    de compra es responsabilidad de la estrategia, no del fetcher.
+    """
+
+    def test_las_fechas_son_las_de_la_fuente_no_etiquetas_de_bucket(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Alpha Vantage entrega cierres semanales de viernes.
+        viernes = pd.DatetimeIndex(
+            ["2024-01-05", "2024-01-12", "2024-01-19", "2024-01-26"], name="Date"
+        )
+        serie = pd.Series([470.0, 472.0, 474.0, 476.0], index=viernes, name="SPY")
+        monkeypatch.setattr(alphavantage, "fetch_weekly_adjusted", SourceSpy(serie))
+
+        resultado = fetcher.get_prices("SPY", date(2024, 1, 1), date(2024, 1, 31))
+
+        # Antes del arreglo esto devolvia los lunes 08, 15, 22 y 29.
+        assert [d.date().isoformat() for d in resultado.index] == [
+            "2024-01-05",
+            "2024-01-12",
+            "2024-01-19",
+            "2024-01-26",
+        ]
+
+    def test_el_precio_queda_con_su_propia_fecha(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        viernes = pd.DatetimeIndex(["2024-01-05", "2024-01-12"], name="Date")
+        serie = pd.Series([470.0, 999.0], index=viernes, name="SPY")
+        monkeypatch.setattr(alphavantage, "fetch_weekly_adjusted", SourceSpy(serie))
+
+        resultado = fetcher.get_prices("SPY", date(2024, 1, 1), date(2024, 1, 31))
+
+        assert resultado.loc[pd.Timestamp("2024-01-12")] == 999.0
+
+    def test_no_colapsa_la_serie_diaria_de_cripto(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        index = pd.date_range("2024-01-01", periods=60, freq="D", name="Date")
+        serie = pd.Series(range(60), index=index, dtype=float, name="BTC-USD")
+        monkeypatch.setattr(binance, "fetch", SourceSpy(serie))
+
+        resultado = fetcher.get_prices("BTC-USD", date(2024, 1, 1), date(2024, 2, 29))
+
+        assert len(resultado) == 60
+
+    def test_recorta_al_rango_pedido(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        index = pd.date_range("2024-01-01", periods=60, freq="D", name="Date")
+        serie = pd.Series(range(60), index=index, dtype=float, name="BTC-USD")
+        monkeypatch.setattr(binance, "fetch", SourceSpy(serie))
+
+        resultado = fetcher.get_prices("BTC-USD", date(2024, 1, 10), date(2024, 1, 20))
+
+        assert resultado.index.min().date() == date(2024, 1, 10)
+        assert resultado.index.max().date() == date(2024, 1, 20)
 
 
 class TestErrores:
