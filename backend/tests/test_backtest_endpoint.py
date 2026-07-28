@@ -21,6 +21,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints import backtest as backtest_endpoint
+from app.exceptions import (
+    BacktestError,
+    InvalidDateRangeError,
+    NoDataAvailableError,
+    UnsupportedAssetTypeError,
+    UnsupportedTickerError,
+    UpstreamConfigError,
+    UpstreamRateLimitError,
+    UpstreamResponseError,
+)
 from app.main import app
 
 BACKTEST_URL = "/api/v1/backtest"
@@ -256,131 +266,174 @@ class TestEstrategiasReservadas:
 
 class TestMapeoDeErroresAStatusCode:
     """
-    Contrato congelado: mensaje de error de la capa de datos -> status code.
+    Contrato congelado: error de la capa de datos -> status code.
 
-    Los mensajes son los literales que levantan fetcher.py, alphavantage.py y
-    binance.py. Este es el comportamiento que el refactor a excepciones tipadas
-    tiene que preservar exactamente.
+    Cada caso usa la excepción tipada y el mensaje literal que levanta hoy
+    fetcher.py, alphavantage.py o binance.py. Los status esperados son los mismos
+    que producía la clasificación por substrings anterior.
+
+    Este archivo inyecta la excepción ya construida, así que por sí solo no puede
+    demostrar que el refactor no cambió nada: la prueba independiente del mecanismo
+    está en test_error_contract_integration.py, que hace nacer el error en la fuente
+    real y no se modificó al migrar.
     """
 
     CASOS = [
-        # (id, mensaje, status esperado)
+        # (id, excepción, mensaje literal, status esperado)
         (
             "rango_invertido",
+            InvalidDateRangeError,
             "Rango de fechas inválido: start (2024-06-01) es posterior a end (2024-01-01).",
             422,
         ),
         (
             "ticker_no_soportado",
+            UnsupportedTickerError,
             "Ticker no soportado: 'DOGE-USD'. Use uno de los siguientes: BTC-USD, ETH-USD.",
             404,
         ),
         (
             "tipo_de_activo_no_soportado",
+            UnsupportedAssetTypeError,
             "Tipo de activo no soportado para datos: 'bond'.",
             422,
         ),
         (
             "fuente_sin_datos",
+            NoDataAvailableError,
             "No se pudieron obtener datos para el ticker 'BTC-USD' "
             "(respuesta vacía o rango inválido en la fuente).",
             422,
         ),
         (
             "serie_invalida",
+            NoDataAvailableError,
             "No hay serie de precios válida para el ticker 'BTC-USD'.",
             422,
         ),
         (
             "sin_datos_en_el_rango",
+            NoDataAvailableError,
             "No hay datos de precios para 'BTC-USD' en el rango 2023-01-01 -> 2023-06-01. "
             "Datos disponibles: 2020-01-01 -> 2020-01-30.",
             422,
         ),
         (
             "rate_limit_alpha_vantage",
+            UpstreamRateLimitError,
             "Alpha Vantage indica límite de frecuencia (p. ej. 5 peticiones/minuto en el "
             "plan gratuito). Espera unos minutos o revisa tu cuota en alphavantage.co.",
             429,
         ),
         (
             "alpha_vantage_premium",
+            UpstreamConfigError,
             "Alpha Vantage: respuesta de plan premium requerida. "
             "Verificá que ALPHAVANTAGE_API_KEY en .env sea válida y activa.",
             422,
         ),
         (
             "alpha_vantage_informativo",
+            UpstreamResponseError,
             "Alpha Vantage devolvió un mensaje informativo (no serie de precios). Detalle: x",
             422,
         ),
         (
             "alpha_vantage_serie_vacia",
+            UpstreamResponseError,
             "Serie vacía de Alpha Vantage (Weekly Adjusted Time Series) para 'SPY'.",
             422,
         ),
         (
             "falta_api_key",
+            UpstreamConfigError,
             "Falta la variable de entorno ALPHAVANTAGE_API_KEY. Consigue una clave gratuita "
             "en https://www.alphavantage.co/support/#api-key y configúrala en el entorno.",
             422,
         ),
         (
             "alpha_vantage_rechaza",
+            UpstreamResponseError,
             "Alpha Vantage rechazó la petición: Invalid API call.",
             422,
         ),
         (
             "bloque_ilegible",
+            UpstreamResponseError,
             "No se pudo leer 'Weekly Adjusted Time Series' de Alpha Vantage para 'SPY'. "
             "Claves en la respuesta: ['Error Message']",
             422,
         ),
         (
             "error_de_binance",
+            UpstreamResponseError,
             "Binance API error: 'Invalid symbol.' (code=-1121)",
             422,
         ),
         (
             "respuesta_inesperada_de_binance",
+            UpstreamResponseError,
             "Respuesta inesperada de Binance: dict",
             422,
         ),
     ]
 
+    IDS = [caso[0] for caso in CASOS]
+
     @pytest.mark.parametrize(
-        ("mensaje", "status_esperado"),
-        [(mensaje, status) for _, mensaje, status in CASOS],
-        ids=[caso_id for caso_id, _, _ in CASOS],
+        ("excepcion", "mensaje", "status_esperado"),
+        [(exc, mensaje, status) for _, exc, mensaje, status in CASOS],
+        ids=IDS,
     )
     def test_status_code_por_tipo_de_error(
         self,
         client: TestClient,
         get_prices_que_falla: Callable[[Exception], None],
+        excepcion: type[BacktestError],
         mensaje: str,
         status_esperado: int,
     ) -> None:
-        get_prices_que_falla(ValueError(mensaje))
+        get_prices_que_falla(excepcion(mensaje))
 
         respuesta = client.post(BACKTEST_URL, json=request_body())
 
         assert respuesta.status_code == status_esperado
 
     @pytest.mark.parametrize(
-        "mensaje", [mensaje for _, mensaje, _ in CASOS], ids=[c[0] for c in CASOS]
+        ("excepcion", "mensaje"),
+        [(exc, mensaje) for _, exc, mensaje, _ in CASOS],
+        ids=IDS,
     )
     def test_el_mensaje_llega_intacto_al_cliente(
         self,
         client: TestClient,
         get_prices_que_falla: Callable[[Exception], None],
+        excepcion: type[BacktestError],
         mensaje: str,
     ) -> None:
         # Los mensajes son UI: el frontend los muestra tal cual. No se pueden reescribir.
-        get_prices_que_falla(ValueError(mensaje))
+        get_prices_que_falla(excepcion(mensaje))
 
         respuesta = client.post(BACKTEST_URL, json=request_body())
 
         assert respuesta.json()["detail"] == mensaje
+
+    def test_un_value_error_sin_tipar_sigue_siendo_422(
+        self, client: TestClient, get_prices_que_falla: Callable[[Exception], None]
+    ) -> None:
+        # Fallback defensivo: el mismo comportamiento que tenía la rama final anterior.
+        get_prices_que_falla(ValueError("algo que nadie tipó"))
+
+        respuesta = client.post(BACKTEST_URL, json=request_body())
+
+        assert respuesta.status_code == 422
+        assert respuesta.json()["detail"] == "algo que nadie tipó"
+
+    def test_todas_las_excepciones_de_dominio_son_value_error(self) -> None:
+        # Heredar de ValueError es lo que hizo que la migración fuera aditiva:
+        # cualquier `except ValueError` preexistente las sigue capturando.
+        for _, excepcion, _, _ in self.CASOS:
+            assert issubclass(excepcion, ValueError)
 
 
 class TestErroresInesperados:
