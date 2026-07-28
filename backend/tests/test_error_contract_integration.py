@@ -69,9 +69,7 @@ def entorno(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def fuente_responde(monkeypatch: pytest.MonkeyPatch):
     def _configurar(payload: Any) -> None:
-        monkeypatch.setattr(
-            requests, "get", lambda *a, **k: FakeResponse(payload)
-        )
+        monkeypatch.setattr(requests, "get", lambda *a, **k: FakeResponse(payload))
 
     return _configurar
 
@@ -96,16 +94,12 @@ class TestErroresDeAlphaVantage:
 
         assert client.post(BACKTEST_URL, json=body_etf()).status_code == 422
 
-    def test_mensaje_informativo_da_422(
-        self, client: TestClient, fuente_responde
-    ) -> None:
+    def test_mensaje_informativo_da_422(self, client: TestClient, fuente_responde) -> None:
         fuente_responde({"Information": "Algo inesperado paso"})
 
         assert client.post(BACKTEST_URL, json=body_etf()).status_code == 422
 
-    def test_peticion_rechazada_da_422(
-        self, client: TestClient, fuente_responde
-    ) -> None:
+    def test_peticion_rechazada_da_422(self, client: TestClient, fuente_responde) -> None:
         fuente_responde({"Error Message": "Invalid API call."})
 
         assert client.post(BACKTEST_URL, json=body_etf()).status_code == 422
@@ -138,9 +132,7 @@ class TestErroresDeBinance:
         assert respuesta.status_code == 422
         assert "Binance API error" in respuesta.json()["detail"]
 
-    def test_respuesta_de_tipo_inesperado_da_422(
-        self, client: TestClient, fuente_responde
-    ) -> None:
+    def test_respuesta_de_tipo_inesperado_da_422(self, client: TestClient, fuente_responde) -> None:
         fuente_responde("esto deberia ser una lista")
 
         assert client.post(BACKTEST_URL, json=request_body()).status_code == 422
@@ -159,9 +151,7 @@ class TestErroresDeRango:
         self, client: TestClient, fuente_responde
     ) -> None:
         # La fuente solo tiene 2019; se pide 2024.
-        fuente_responde(
-            [kline("2019-01-01", 100.0), kline("2019-01-02", 101.0)]
-        )
+        fuente_responde([kline("2019-01-01", 100.0), kline("2019-01-02", 101.0)])
 
         respuesta = client.post(BACKTEST_URL, json=request_body())
 
@@ -176,10 +166,7 @@ class TestCaminoFeliz:
         # Control: si la fuente responde bien, la misma pila entrega 200.
         inicio = date(2024, 1, 1)
         fuente_responde(
-            [
-                kline((inicio + timedelta(days=i)).isoformat(), 100.0 + i)
-                for i in range(120)
-            ]
+            [kline((inicio + timedelta(days=i)).isoformat(), 100.0 + i) for i in range(120)]
         )
 
         respuesta = client.post(BACKTEST_URL, json=request_body())

@@ -53,9 +53,7 @@ def semanas_hasta_hoy(
     return pd.Series([precio] * semanas, index=index, name="TEST", dtype=float)
 
 
-def escribir_cache(
-    path: Path, serie: pd.Series, *, antiguedad_horas: float = 0.0
-) -> None:
+def escribir_cache(path: Path, serie: pd.Series, *, antiguedad_horas: float = 0.0) -> None:
     """Siembra un CSV de caché con el formato real (Date, Close) y una mtime dada."""
     serie.rename_axis("Date").reset_index(name="Close").to_csv(path, index=False)
     if antiguedad_horas:
@@ -83,9 +81,7 @@ class TestCacheFresco:
     ) -> None:
         escribir_cache(cache_dir / "BTC-USD.csv", series_hasta_hoy(precio=1.0))
 
-        resultado = fetcher.get_prices(
-            "BTC-USD", date.today() - timedelta(days=30), date.today()
-        )
+        resultado = fetcher.get_prices("BTC-USD", date.today() - timedelta(days=30), date.today())
 
         assert binance_spy.calls == 0
         assert set(resultado.unique()) == {1.0}  # el precio del caché, no el de la fuente
@@ -121,9 +117,7 @@ class TestInvalidacionDeCache:
             antiguedad_horas=48,
         )
 
-        resultado = fetcher.get_prices(
-            "BTC-USD", date.today() - timedelta(days=30), date.today()
-        )
+        resultado = fetcher.get_prices("BTC-USD", date.today() - timedelta(days=30), date.today())
 
         assert binance_spy.calls == 1
         assert set(resultado.unique()) == {2.0}  # el precio nuevo, de la fuente
@@ -231,25 +225,19 @@ class TestLecturaDefensivaDelCSV:
             cache_dir / "BTC-USD.csv", index=False
         )
 
-        resultado = fetcher.get_prices(
-            "BTC-USD", date.today() - timedelta(days=30), date.today()
-        )
+        resultado = fetcher.get_prices("BTC-USD", date.today() - timedelta(days=30), date.today())
 
         assert binance_spy.calls == 1
         assert set(resultado.unique()) == {2.0}
 
 
 class TestNombreDeArchivoDeCache:
-    def test_cripto_usa_el_ticker_pelado(
-        self, cache_dir: Path, binance_spy: SourceSpy
-    ) -> None:
+    def test_cripto_usa_el_ticker_pelado(self, cache_dir: Path, binance_spy: SourceSpy) -> None:
         fetcher.get_prices("BTC-USD", date.today() - timedelta(days=30), date.today())
 
         assert [p.name for p in cache_dir.iterdir()] == ["BTC-USD.csv"]
 
-    def test_los_etf_usan_el_sufijo_wav(
-        self, cache_dir: Path, alphavantage_spy: SourceSpy
-    ) -> None:
+    def test_los_etf_usan_el_sufijo_wav(self, cache_dir: Path, alphavantage_spy: SourceSpy) -> None:
         # Siempre TIME_SERIES_WEEKLY_ADJUSTED, independientemente de la frecuencia DCA.
         fetcher.get_prices(
             "SPY",
@@ -290,15 +278,11 @@ class TestErrores:
     def test_fuente_que_devuelve_serie_vacia(
         self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        vacia = pd.Series(
-            [], index=pd.DatetimeIndex([], name="Date"), name="TEST", dtype=float
-        )
+        vacia = pd.Series([], index=pd.DatetimeIndex([], name="Date"), name="TEST", dtype=float)
         monkeypatch.setattr(binance, "fetch", SourceSpy(vacia))
 
         with pytest.raises(ValueError, match="No se pudieron obtener datos"):
-            fetcher.get_prices(
-                "BTC-USD", date.today() - timedelta(days=30), date.today()
-            )
+            fetcher.get_prices("BTC-USD", date.today() - timedelta(days=30), date.today())
 
     def test_rango_sin_datos_informa_el_rango_disponible(
         self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch

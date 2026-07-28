@@ -52,9 +52,7 @@ class TestCompras:
         # Precios 100 / 50 / 200, aporte 100 en cada uno:
         #   100/100 = 1.0 u | 100/50 = 2.0 u | 100/200 = 0.5 u  => 3.5 u
         # Valor final = 3.5 u * 200 = 700 sobre 300 invertidos => +400 (+133.33 %).
-        prices = price_series(
-            ["2024-01-01", "2024-01-02", "2024-01-03"], [100.0, 50.0, 200.0]
-        )
+        prices = price_series(["2024-01-01", "2024-01-02", "2024-01-03"], [100.0, 50.0, 200.0])
 
         result = strategy.run(prices, dca_params())
 
@@ -64,9 +62,7 @@ class TestCompras:
         assert result.metrics.absolute_return == 400.0
         assert result.metrics.return_pct == 133.33
 
-    def test_registra_precio_y_unidades_de_cada_compra(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_registra_precio_y_unidades_de_cada_compra(self, strategy: DCAStrategy) -> None:
         prices = price_series(["2024-01-01", "2024-01-02"], [100.0, 50.0])
 
         result = strategy.run(prices, dca_params())
@@ -76,9 +72,7 @@ class TestCompras:
         assert (segunda.price, segunda.units_bought) == (50.0, 2.0)
         assert primera.amount_invested == segunda.amount_invested == 100.0
 
-    def test_solo_compra_en_las_fechas_del_periodo_no_en_todas(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_solo_compra_en_las_fechas_del_periodo_no_en_todas(self, strategy: DCAStrategy) -> None:
         # 14 días corridos con frecuencia semanal => 2 semanas ISO => 2 compras,
         # pero el chart mantiene un punto por día para poder dibujar la curva.
         prices = constant_series("2024-01-01", 14, price=100.0)
@@ -99,9 +93,7 @@ class TestComisiones:
         assert result.metrics.total_commissions_paid == 0.0
         assert result.metrics.total_units == 3.0
 
-    def test_la_comision_reduce_las_unidades_compradas(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_la_comision_reduce_las_unidades_compradas(self, strategy: DCAStrategy) -> None:
         # Comisión 1 % sobre aportes de 100: se pagan 1.0 por compra y se invierten
         # 99 efectivos => 0.99 u por día, 2.97 u en 3 días.
         prices = constant_series("2024-01-01", 3, price=100.0)
@@ -128,17 +120,13 @@ class TestComisiones:
     def test_commission_pct_es_opcional(self, strategy: DCAStrategy) -> None:
         prices = constant_series("2024-01-01", 2, price=100.0)
 
-        result = strategy.run(
-            prices, {"amount_per_period": 100.0, "frequency": "daily"}
-        )
+        result = strategy.run(prices, {"amount_per_period": 100.0, "frequency": "daily"})
 
         assert result.metrics.total_commissions_paid == 0.0
 
 
 class TestCAGR:
-    def test_calcula_cagr_anualizado_sobre_el_periodo_real(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_calcula_cagr_anualizado_sobre_el_periodo_real(self, strategy: DCAStrategy) -> None:
         # 2020-01-01 -> 2022-01-01 son 731 días => 731 / 365.25 = 2.0013689 años.
         # Compras: 100/100 = 1.0 u y 100/400 = 0.25 u => 1.25 u; final 1.25 * 400 = 500.
         # ratio = 500 / 200 = 2.5  =>  CAGR = 2.5 ** (1 / 2.0013689) - 1 = 0.580643
@@ -150,9 +138,7 @@ class TestCAGR:
         assert result.metrics.final_value == 500.0
         assert result.metrics.cagr_pct == 58.06
 
-    def test_cagr_es_cero_cuando_el_periodo_no_llega_a_un_dia(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_cagr_es_cero_cuando_el_periodo_no_llega_a_un_dia(self, strategy: DCAStrategy) -> None:
         # Serie de un solo punto => years == 0 => no se puede anualizar.
         prices = price_series(["2024-01-01"], [100.0])
 
@@ -161,9 +147,7 @@ class TestCAGR:
         assert result.metrics.cagr_pct == 0
         assert result.lump_sum.cagr_pct == 0
 
-    def test_cagr_negativo_cuando_el_valor_final_cae(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_cagr_negativo_cuando_el_valor_final_cae(self, strategy: DCAStrategy) -> None:
         prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 25.0])
 
         result = strategy.run(prices, dca_params())
@@ -188,18 +172,14 @@ class TestLumpSum:
         # ratio 4.0 sobre 2.0013689 años => 4 ** (1 / 2.0013689) - 1 = 0.999052
         assert result.lump_sum.cagr_pct == 99.91
 
-    def test_en_mercado_alcista_el_lump_sum_le_gana_al_dca(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_en_mercado_alcista_el_lump_sum_le_gana_al_dca(self, strategy: DCAStrategy) -> None:
         prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 400.0])
 
         result = strategy.run(prices, dca_params())
 
         assert result.lump_sum.final_value > result.metrics.final_value
 
-    def test_la_comision_del_lump_sum_se_cobra_una_sola_vez(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_la_comision_del_lump_sum_se_cobra_una_sola_vez(self, strategy: DCAStrategy) -> None:
         # Comisión 1 % sobre 200 de capital = 2; se invierten 198 => 1.98 u
         # => final 1.98 * 400 = 792 => (792 - 200) / 200 = +296 %.
         prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 400.0])
@@ -212,9 +192,7 @@ class TestLumpSum:
 
 
 class TestChartData:
-    def test_hay_un_punto_por_cada_fecha_de_la_serie(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_hay_un_punto_por_cada_fecha_de_la_serie(self, strategy: DCAStrategy) -> None:
         prices = constant_series("2024-01-01", 5, price=100.0)
 
         result = strategy.run(prices, dca_params())
@@ -222,12 +200,8 @@ class TestChartData:
         assert len(result.chart_data) == 5
         assert [p.date for p in result.chart_data] == [d.date() for d in prices.index]
 
-    def test_el_capital_invertido_acumulado_nunca_baja(
-        self, strategy: DCAStrategy
-    ) -> None:
-        prices = price_series(
-            ["2024-01-01", "2024-01-02", "2024-01-03"], [100.0, 50.0, 200.0]
-        )
+    def test_el_capital_invertido_acumulado_nunca_baja(self, strategy: DCAStrategy) -> None:
+        prices = price_series(["2024-01-01", "2024-01-02", "2024-01-03"], [100.0, 50.0, 200.0])
 
         result = strategy.run(prices, dca_params())
 
@@ -235,9 +209,7 @@ class TestChartData:
         assert acumulado == sorted(acumulado)
         assert acumulado == [100.0, 200.0, 300.0]
 
-    def test_el_valor_del_portfolio_sigue_al_precio(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_el_valor_del_portfolio_sigue_al_precio(self, strategy: DCAStrategy) -> None:
         # Tras comprar 1 u a 100, si el precio se duplica el portfolio vale 200
         # aunque no se haya invertido nada nuevo ese día.
         prices = price_series(["2024-01-01", "2024-01-02"], [100.0, 200.0])
@@ -261,9 +233,7 @@ class TestBordes:
         assert result.metrics.return_pct == 0
         assert result.lump_sum.final_value == 100.0
 
-    def test_serie_vacia_da_un_error_de_dominio_no_un_crash(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_serie_vacia_da_un_error_de_dominio_no_un_crash(self, strategy: DCAStrategy) -> None:
         # Antes levantaba IndexError desde pandas, que el endpoint traducía a 500.
         with pytest.raises(ValueError, match="serie de precios vacía"):
             strategy.run(empty_series(), dca_params())
@@ -281,9 +251,7 @@ class TestBordes:
         assert result.lump_sum.return_pct == 0
         assert result.lump_sum.cagr_pct == 0
 
-    def test_ninguna_metrica_es_nan_con_capital_cero(
-        self, strategy: DCAStrategy
-    ) -> None:
+    def test_ninguna_metrica_es_nan_con_capital_cero(self, strategy: DCAStrategy) -> None:
         prices = price_series(["2020-01-01", "2022-01-01"], [100.0, 400.0])
 
         result = strategy.run(prices, dca_params(amount=0.0))

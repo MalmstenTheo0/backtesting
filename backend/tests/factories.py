@@ -57,6 +57,4 @@ def business_day_series(
 
 def empty_series(*, name: str = DEFAULT_TICKER) -> pd.Series:
     """Serie vacía con el mismo tipo de índice que una serie real."""
-    return pd.Series(
-        [], index=pd.DatetimeIndex([], name="Date"), name=name, dtype=float
-    )
+    return pd.Series([], index=pd.DatetimeIndex([], name="Date"), name=name, dtype=float)
