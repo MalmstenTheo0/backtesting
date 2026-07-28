@@ -16,6 +16,13 @@ class DCAStrategy(Strategy):
     """
 
     def run(self, prices: pd.Series, params: dict) -> BacktestResult:
+        if prices.empty:
+            # Sin esta guarda pandas levanta IndexError desde `prices.iloc[-1]`,
+            # que la capa HTTP traduce a un 500 opaco.
+            raise ValueError(
+                "No se puede simular sobre una serie de precios vacía."
+            )
+
         amount = params["amount_per_period"]
         frequency = params["frequency"]
         commission_pct = params.get("commission_pct", 0.0)
