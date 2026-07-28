@@ -147,3 +147,7 @@ Proyecto personal con fines educativos. Los resultados son simulaciones sobre da
 históricos y **no son asesoramiento financiero**: el rendimiento pasado no predice el
 futuro. El motor implementa DCA tradicional; `dca_weighted` y `value_averaging` están
 reservados en el contrato de la API y todavía no tienen implementación.
+
+## Licencia
+
+[MIT](LICENSE) © Theo Malmsten
