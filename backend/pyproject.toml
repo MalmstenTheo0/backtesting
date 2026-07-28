@@ -1,0 +1,8 @@
+# Configuración de herramientas únicamente.
+# El backend NO es un paquete instalable: se sigue instalando con requirements.txt.
+# Este archivo existe solo para centralizar la config de pytest y ruff.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers --strict-config"
